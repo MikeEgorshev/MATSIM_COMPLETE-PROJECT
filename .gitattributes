@@ -1,0 +1,2 @@
+output-pt/*.xml filter=lfs diff=lfs merge=lfs -text
+output-pt/**/*.xml filter=lfs diff=lfs merge=lfs -text

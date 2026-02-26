@@ -1,0 +1,4 @@
+Module,Message
+RoutingConfigGroup,"The first mode routing (= teleported mode) params that are explicitly defined clear the default mode routing (= teleported mode) params.  If you want to avoid this "
+RoutingConfigGroup,"    warning, use clearTeleportedModeParams(true) in code, and ""clearDefaultTeleportedModeParams""=true in xml config."
+ScoringConfigGroup$ReflectiveDelegate,"Setting pathSizeLogitBeta different from zero is experimental.  KN, Sep'08"

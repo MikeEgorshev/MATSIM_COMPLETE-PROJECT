@@ -75,6 +75,7 @@ Zone-based population derivation (example):
 - `src/main/java/org/matsim/project/`: Shamalgan preparation and run classes
 - `tools/`: utility scripts for extraction, QC, plotting, housekeeping
 - `analysis-artifacts/`: generated diagnostics, plots, and PT reference notes
+- `docs/progress/`: structured progress log and workstream status
 
 ## Data and Licensing
 

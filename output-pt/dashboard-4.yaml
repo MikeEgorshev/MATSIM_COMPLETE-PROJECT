@@ -1,0 +1,13 @@
+header:
+  tab: PT
+  title: Public Transit
+  triggerPattern: (*.)?output_transitSchedule*xml*
+layout:
+  viewer:
+  - type: transit
+    title: Transit Viewer
+    description: Visualize the transit schedule.
+    height: 12.0
+    network: analysis/network-all/network.avro
+    transitSchedule: (*.)?output_transitSchedule.xml*
+    demand: analysis/pt/pt_pax_volumes.csv.gz

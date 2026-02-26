@@ -1,0 +1,16 @@
+org\matsim\project\RunMatsimApplication.class
+org\matsim\project\PrepareShamalganPopulationFromZones$ZoneSpec.class
+org\matsim\project\PrepareShamalganTransitFromAssumptions.class
+org\matsim\project\PrepareShamalganTransitFromGtfs.class
+org\matsim\project\PrepareShamalganNetwork$SpeedClass.class
+org\matsim\project\ShamalganDashboardProvider$ShamalganPublicTransitDashboard.class
+org\matsim\project\PrepareShamalganPopulation.class
+org\matsim\project\PrepareShamalganTransitFromAssumptions$StopSeed.class
+org\matsim\project\PrepareShamalganTransitFromAssumptions$MappedStop.class
+org\matsim\project\RunMatsim.class
+org\matsim\project\PrepareShamalganNetwork$SegmentKey.class
+org\matsim\project\PrepareShamalganPopulationFromZones.class
+org\matsim\project\PrepareShamalganNetwork.class
+org\matsim\project\RunMatsimFromExamplesUtils.class
+org\matsim\project\RunShamalgan.class
+org\matsim\project\ShamalganDashboardProvider.class

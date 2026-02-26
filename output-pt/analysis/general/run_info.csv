@@ -1,0 +1,10 @@
+info,value
+JVM,"21.0.9; Oracle Corporation; mixed mode, sharing; 64-bit"
+OS,Windows 11; 10.0; amd64
+CPU cores,12
+max. Memory,3928.0MB (4118806528B)
+MATSim-Build,r7f2ea0d07d20e164b577066595eddc23e3659473 ({2025-04-11 08:55:36})
+Command,org.apache.maven.wrapper.MavenWrapperMain -q exec:java -Dexec.mainClass=org.matsim.project.RunShamalgan -Dexec.args=scenarios/shamalgan/config-pt.xml --simwrapper
+Start,2026-02-25 15:37:57
+End,2026-02-25 15:41:10
+Duration,3 minutes 13 seconds
