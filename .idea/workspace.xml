@@ -5,16 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2e1014ba-ded9-4301-a8b8-e477218ad9f3" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README_SHAMALGAN.md" beforeDir="false" afterPath="$PROJECT_DIR$/README_SHAMALGAN.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/analysis-artifacts/pt-data/assumed_pt_network_map.png" beforeDir="false" afterPath="$PROJECT_DIR$/analysis-artifacts/pt-data/assumed_pt_network_map.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/resources/META-INF/services/org.matsim.simwrapper.DashboardProvider" beforeDir="false" afterPath="$PROJECT_DIR$/resources/META-INF/services/org.matsim.simwrapper.DashboardProvider" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scenarios/shamalgan/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/scenarios/shamalgan/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scenarios/shamalgan/network-with-pt.xml" beforeDir="false" afterPath="$PROJECT_DIR$/scenarios/shamalgan/network-with-pt.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scenarios/shamalgan/network.xml" beforeDir="false" afterPath="$PROJECT_DIR$/scenarios/shamalgan/network.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scenarios/shamalgan/transitSchedule.xml" beforeDir="false" afterPath="$PROJECT_DIR$/scenarios/shamalgan/transitSchedule.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scenarios/shamalgan/transitVehicles.xml" beforeDir="false" afterPath="$PROJECT_DIR$/scenarios/shamalgan/transitVehicles.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/matsim/project/PrepareShamalganNetwork.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/matsim/project/PrepareShamalganNetwork.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README_RUNNING.md" beforeDir="false" afterPath="$PROJECT_DIR$/README_RUNNING.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,12 +25,12 @@
     &quot;assignee&quot;: &quot;MikeEgorshev&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/MikeEgorshev/MATSIM_SHAMALGAN.git&quot;,
-    &quot;accountId&quot;: &quot;a3c49a5a-6cdf-4d46-85c7-b5eb15ce9c33&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/MikeEgorshev/MATSIM_COMPLETE-PROJECT.git",
+    "accountId": "a3c49a5a-6cdf-4d46-85c7-b5eb15ce9c33"
   }
-}</component>
+}]]></component>
   <component name="MavenImportPreferences">
     <option name="generalSettings">
       <MavenGeneralSettings>
@@ -77,6 +69,9 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
     "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
@@ -131,7 +126,7 @@
       <workItem from="1771848761889" duration="315000" />
       <workItem from="1771925156039" duration="486000" />
       <workItem from="1771925919103" duration="7564000" />
-      <workItem from="1771995991568" duration="20851000" />
+      <workItem from="1771995991568" duration="23343000" />
     </task>
     <servers />
   </component>

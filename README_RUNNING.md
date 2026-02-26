@@ -76,6 +76,14 @@ Living log of project moves, decisions, and outcomes.
 - Included ignored artifacts by force-add (outputs, target classes, IDE files) per transfer request.
 - Added Git LFS tracking for oversized output XML files to satisfy GitHub file size limits.
 
+### New Field Speed Evidence
+- User provided updated local knowledge for Shamalgan road speeds:
+  - observed mean speed around `35 km/h`
+  - observed minimum speed around `25 km/h`
+- Next calibration step should align model speed assumptions to this evidence, while distinguishing:
+  - network free-speed parameters (model input)
+  - realized travel speed in simulation output (model result)
+
 ---
 
 ## Update Rule
