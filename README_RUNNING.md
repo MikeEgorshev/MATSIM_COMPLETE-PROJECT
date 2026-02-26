@@ -70,6 +70,12 @@ Living log of project moves, decisions, and outcomes.
 - Added `NEW_PC_SETUP.md` with full dependency/install/run requirements for a clean machine.
 - Prepared to publish full project snapshot (including normally ignored outputs) to new repository using Git LFS for files above GitHub size limits.
 
+### Repo Migration Completed
+- Switched remote and pushed full snapshot to:
+  - `https://github.com/MikeEgorshev/MATSIM_COMPLETE-PROJECT.git`
+- Included ignored artifacts by force-add (outputs, target classes, IDE files) per transfer request.
+- Added Git LFS tracking for oversized output XML files to satisfy GitHub file size limits.
+
 ---
 
 ## Update Rule
