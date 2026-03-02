@@ -5,6 +5,11 @@
 	<module name="global">
 		<param name="randomSeed" value="4711" />
 		<param name="coordinateSystem" value="EPSG:32643" />
+		<param name="numberOfThreads" value="6" />
+	</module>
+
+	<module name="qsim">
+		<param name="numberOfThreads" value="6" />
 	</module>
 
 	<module name="network">
@@ -32,7 +37,7 @@
 	</module>
 
 	<module name="controller">
-		<param name="outputDirectory" value="./output-pt" />
+		<param name="outputDirectory" value="C:/IntelliJ Projects/matsim-run-outputs/output-pt" />
 		<param name="lastIteration" value="10" />
 		<param name="compressionType" value="gzip" />
 	</module>
