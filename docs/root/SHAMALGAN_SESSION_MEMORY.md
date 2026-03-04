@@ -99,7 +99,7 @@ Date context: 2026-02-23.
   - `D:\IJ projects\matsim-scenario-template-shamalgan`
 - Copied Shamalgan scenario/code/data there.
 - Added:
-  - `README_SHAMALGAN.md`
+  - `docs/root/README_SHAMALGAN.md`
 - Adjusted template POM to run Shamalgan path and compile successfully in this environment.
 
 ## 11) Important caveat on template
@@ -119,7 +119,7 @@ Date context: 2026-02-23.
 ## 13) Suggested prompt for new chat
 Use this in a new chat:
 
-"Read `SHAMALGAN_SESSION_MEMORY.md` and `SHAMALGAN_HANDOFF.md` from the project root, then continue from the migration state. First verify compile and run `RunShamalgan --simwrapper`, then propose next steps for real PT via GTFS."
+"Read `docs/root/SHAMALGAN_SESSION_MEMORY.md` and `docs/root/SHAMALGAN_HANDOFF.md`, then continue from the migration state. First verify compile and run `RunShamalgan --simwrapper`, then propose next steps for real PT via GTFS."
 
 ## 14) Tone/working agreement memory
 - User appreciates practical, hands-on help and direct commands.

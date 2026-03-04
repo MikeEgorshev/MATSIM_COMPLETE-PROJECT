@@ -97,7 +97,7 @@ Example:
 .\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config-pt.xml --simwrapper"
 ```
 
-## 6) Build assumed PT supply from mapped bus stops (no GTFS)
+## 6) Build bootstrap PT supply from mapped bus stops (no GTFS)
 
 Use this when GTFS is unavailable. It creates:
 - `scenarios/shamalgan/network-with-pt.xml`
@@ -108,7 +108,7 @@ Use this when GTFS is unavailable. It creates:
 .\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.PrepareShamalganTransitFromAssumptions" "-Dexec.args=scenarios/shamalgan/network.xml analysis-artifacts/pt-data/osm_bus_stops.csv scenarios/shamalgan/network-with-pt.xml scenarios/shamalgan/transitSchedule.xml scenarios/shamalgan/transitVehicles.xml 30 60 360 06:00:00 23:00:00"
 ```
 
-Assumption provenance and baseline stats:
+Bootstrap assumption provenance and baseline stats:
 - `analysis-artifacts/pt-data/MATSIM_EXAMPLE_PT_BASELINES.md`
 
 ## 7) Extract OSM bus stops (current trusted PT geometry source)

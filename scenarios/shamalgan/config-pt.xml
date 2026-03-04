@@ -37,7 +37,7 @@
 	</module>
 
 	<module name="controller">
-		<param name="outputDirectory" value="C:/IntelliJ Projects/matsim-run-outputs/output-pt" />
+		<param name="outputDirectory" value="output" />
 		<param name="lastIteration" value="10" />
 		<param name="compressionType" value="gzip" />
 	</module>

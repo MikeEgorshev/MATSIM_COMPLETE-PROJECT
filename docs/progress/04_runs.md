@@ -3,19 +3,19 @@
 ## Latest PT Run
 
 - Config: `scenarios/shamalgan/config-pt.xml`
-- Output: `output-pt/`
+- Output: `output/`
 - Iterations: `0..10`
 - Status: completed successfully
 
 ## Observed KPIs
 
-From `output-pt/modestats.csv`:
+From `output/modestats.csv`:
 - Iteration 10 shares:
   - car: `0.5243`
   - pt: `0.1394`
   - walk: `0.3363`
 
-From `output-pt/scorestats.csv`:
+From `output/scorestats.csv`:
 - `avg_executed` improved from `115.34` (it.0) to `125.996` (it.10)
 
 ## Warnings Review

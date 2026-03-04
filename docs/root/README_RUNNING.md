@@ -44,7 +44,7 @@ Living log of project moves, decisions, and outcomes.
 
 ### Documentation Workflow Update
 - Added continuous update requirement:
-  - `README_RUNNING.md` must be updated after every exchange.
+  - `docs/root/README_RUNNING.md` must be updated after every exchange.
 - Added README collector and hub:
   - script: `tools/collect_readmes.ps1`
   - index: `docs/readme-hub/README.md`
@@ -67,7 +67,7 @@ Living log of project moves, decisions, and outcomes.
 - Added online corroboration notes for route-number presence (2GIS links) in `docs/progress/03_pt.md`.
 
 ### Repo Migration Prep (New PC)
-- Added `NEW_PC_SETUP.md` with full dependency/install/run requirements for a clean machine.
+- Added `docs/root/NEW_PC_SETUP.md` with full dependency/install/run requirements for a clean machine.
 - Prepared to publish full project snapshot (including normally ignored outputs) to new repository using Git LFS for files above GitHub size limits.
 
 ### Repo Migration Completed
@@ -83,6 +83,54 @@ Living log of project moves, decisions, and outcomes.
 - Next calibration step should align model speed assumptions to this evidence, while distinguishing:
   - network free-speed parameters (model input)
   - realized travel speed in simulation output (model result)
+
+## 2026-03-04
+
+### Gap Review Against MATSim Guidance + Berlin Scenario
+- Completed explicit gap assessment comparing current Shamalgan state with:
+  - MATSim Book Part One (`partOne-latest.pdf`)
+  - `matsim-scenarios/matsim-berlin`
+- Added prioritized checklist and implementation roadmap:
+  - `docs/progress/06_gap_checklist_2026-03-04.md`
+- Key priorities formalized:
+  - replace PT bootstrap with validated operational data
+  - introduce explicit calibration loop with measurable targets
+  - improve demand realism (car availability + richer activity purposes)
+  - remove absolute output paths for portability
+  - add active Shamalgan integration test baseline
+
+### Phase 1 Implementation Started
+- Made scenario config output paths portable (relative):
+  - `scenarios/shamalgan/config.xml` -> `output`
+  - `scenarios/shamalgan/config-pt.xml` -> `output`
+- Labeled assumption PT pipeline explicitly as bootstrap:
+  - `scenarios/shamalgan/README.md`
+  - `PrepareShamalganTransitFromAssumptions` class comment
+- Added active integration test for Shamalgan run path:
+  - `src/test/java/org/matsim/project/RunShamalganIntegrationTest.java`
+  - test builds a 200-person sampled plans file and runs iterations `0..2`
+- Verified with:
+  - `.\mvnw.cmd -q -Dtest=RunShamalganIntegrationTest test` (pass)
+
+### Output Folder Consolidation
+- Switched PT config output to the unified folder:
+  - `scenarios/shamalgan/config-pt.xml` now writes to `output`
+- Archived existing run directories:
+  - `output` -> `archive-outputs/output-20260304-152923`
+  - `output-pt` -> `archive-outputs/output-pt-20260304-152923`
+- Created fresh active `output/` folder for next PT runs.
+
+### Documentation Restructure and Cleanup
+- Moved all root-level Markdown docs into:
+  - `docs/root/`
+- Added docs index:
+  - `docs/README.md`
+- Updated doc references to new `docs/root/*` paths in continuity/handoff/session memory files.
+- Updated run log docs to unified output folder naming:
+  - `docs/progress/04_runs.md` now references `output/`.
+- Regenerated README hub index/copies:
+  - `tools/collect_readmes.ps1`
+  - `docs/readme-hub/README.md`
 
 ---
 

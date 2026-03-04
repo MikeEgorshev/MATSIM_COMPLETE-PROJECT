@@ -18,10 +18,11 @@ This folder tracks project progress in a public, structured format.
 - `docs/progress/03_pt.md`: PT build status, assumptions, and data intake plan
 - `docs/progress/04_runs.md`: executed runs and key outcomes
 - `docs/progress/05_next_steps.md`: prioritized backlog
+- `docs/progress/06_gap_checklist_2026-03-04.md`: gap checklist vs MATSim book + matsim-berlin, with prioritized implementation plan
 
 ## Update Rule
 
 After each major session:
 1. Append key decisions to `00_timeline.md`.
-2. Update the relevant workstream file (`01-05`).
+2. Update the relevant workstream file (`01-06`).
 3. Add new run outcomes to `04_runs.md`.

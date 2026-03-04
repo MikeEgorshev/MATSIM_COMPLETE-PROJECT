@@ -19,7 +19,7 @@ Use this file to bootstrap a new chat session quickly.
 ## Important docs
 - `scenarios/shamalgan/README.md`
 - `scenarios/shamalgan/POPULATION_ALGORITHM.md`
-- `README_SHAMALGAN.md` (in migrated template repo)
+- `docs/root/README_SHAMALGAN.md`
 
 ## Known modeling facts
 - Current `pt` in Shamalgan is mode-labeled only (no transit schedule/vehicles yet).

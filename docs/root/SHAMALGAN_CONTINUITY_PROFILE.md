@@ -93,4 +93,4 @@ When user reports lag:
 4. Add custom Shamalgan SimWrapper dashboard.
 
 ## Canonical recovery prompt for new chat
-"Read `SHAMALGAN_HANDOFF.md`, `SHAMALGAN_SESSION_MEMORY.md`, and `SHAMALGAN_CONTINUITY_PROFILE.md`. Continue from current Shamalgan state, verify compile/run, then proceed with real PT integration plan."
+"Read `docs/root/SHAMALGAN_HANDOFF.md`, `docs/root/SHAMALGAN_SESSION_MEMORY.md`, and `docs/root/SHAMALGAN_CONTINUITY_PROFILE.md`. Continue from current Shamalgan state, verify compile/run, then proceed with real PT integration plan."

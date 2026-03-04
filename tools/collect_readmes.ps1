@@ -15,6 +15,7 @@ New-Item -ItemType Directory -Path $filesPath -Force | Out-Null
 $skipDirPatterns = @(
     "\\.git\\",
     "\\target\\",
+    "\\output\\",
     "\\output-pt\\",
     "\\archive-outputs\\",
     "\\docs\\readme-hub\\"
