@@ -42,8 +42,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Creates bootstrap PT supply from stop data and assumptions.
@@ -59,12 +61,29 @@ public class PrepareShamalganTransitFromAssumptions {
 	private static final int DEFAULT_HEADWAY_SEC = 360;
 	private static final String DEFAULT_SERVICE_START = "06:00:00";
 	private static final String DEFAULT_SERVICE_END = "23:00:00";
+	private static final String DEFAULT_SERVICE_PROFILE_CSV = "scenarios/shamalgan/pt_service_profile.csv";
+	private static final int DEFAULT_LAYOVER_SEC = 300;
+	private static final String DEFAULT_STD_VEHICLE_TYPE = "bus_std";
+	private static final String DEFAULT_MINIBUS_VEHICLE_TYPE = "minibus";
+	private static final int DEFAULT_STD_SEATS = 35;
+	private static final int DEFAULT_STD_STANDING = 30;
+	private static final double DEFAULT_STD_LENGTH_M = 12.0;
+	private static final double DEFAULT_STD_PCU = 2.5;
+	private static final int DEFAULT_MINIBUS_SEATS = 18;
+	private static final int DEFAULT_MINIBUS_STANDING = 8;
+	private static final double DEFAULT_MINIBUS_LENGTH_M = 7.5;
+	private static final double DEFAULT_MINIBUS_PCU = 1.8;
 
 	private static final Map<String, Integer> ROUTE_HEADWAY_OVERRIDES_SEC = Map.of(
 		"6", 600,
 		"11", 720,
 		"213", 1200,
 		"256", 1200
+	);
+	private static final Map<String, Integer> ROUTE_YANDEX_TARGET_AVG_HEADWAY_SEC = Map.of(
+		"6", 1800,
+		"11", 900,
+		"213", 600
 	);
 	private static final Set<String> ROUTE_256_ALLOWED_ORIGIDS = Set.of("1384364335", "1233850824");
 	private static final Map<String, String> ROUTE_MANDATORY_LINK_OVERRIDES = Map.of(
@@ -75,6 +94,12 @@ public class PrepareShamalganTransitFromAssumptions {
 	);
 	private static final Set<String> ROUTE_213_BLOCKED_ORIGIDS = Set.of("1154458994", "230099145");
 	private static final double MAX_FORCED_SEGMENT_DETOUR_RATIO = 6.0;
+	private static final Map<String, String> ROUTE_VEHICLE_TYPE_OVERRIDES = Map.of(
+		"256", DEFAULT_MINIBUS_VEHICLE_TYPE,
+		"6", DEFAULT_STD_VEHICLE_TYPE,
+		"11", DEFAULT_STD_VEHICLE_TYPE,
+		"213", DEFAULT_STD_VEHICLE_TYPE
+	);
 
 	private record StopSeed(String id, String name, double lon, double lat) {
 	}
@@ -91,10 +116,37 @@ public class PrepareShamalganTransitFromAssumptions {
 	private record NodeDist(Node node, double dist) {
 	}
 
+	private record ServicePeriod(double startSec, double endSec, int headwaySec) {
+	}
+
+	private record RouteServiceProfile(
+		String routeId,
+		String vehicleTypeId,
+		int seats,
+		int standing,
+		double lengthM,
+		double pcu,
+		int layoverSec,
+		List<ServicePeriod> periods
+	) {
+	}
+
+	private record RouteOperationPlan(
+		List<Double> departuresSec,
+		int minHeadwaySec,
+		int layoverSec,
+		String vehicleTypeId,
+		int seats,
+		int standing,
+		double lengthM,
+		double pcu
+	) {
+	}
+
 	public static void main(String[] args) throws Exception {
 		if (args.length < 5) {
 			System.out.println("Usage:");
-			System.out.println("  PrepareShamalganTransitFromAssumptions <input-network.xml> <stops.csv> <output-network-with-pt.xml> <output-transitSchedule.xml> <output-transitVehicles.xml> [speedKmh] [dwellSec] [headwaySec] [serviceStart] [serviceEnd]");
+			System.out.println("  PrepareShamalganTransitFromAssumptions <input-network.xml> <stops.csv> <output-network-with-pt.xml> <output-transitSchedule.xml> <output-transitVehicles.xml> [speedKmh] [dwellSec] [headwaySec] [serviceStart] [serviceEnd] [serviceProfileCsv]");
 			System.out.println("stops.csv can be:");
 			System.out.println("  legacy: osm_type,osm_id,name,lon,lat");
 			System.out.println("  tagged: route_id,stop_seq,stop_id,name,x,y");
@@ -111,6 +163,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		int headwaySec = args.length >= 8 ? Integer.parseInt(args[7]) : DEFAULT_HEADWAY_SEC;
 		String serviceStart = args.length >= 9 ? args[8] : DEFAULT_SERVICE_START;
 		String serviceEnd = args.length >= 10 ? args[9] : DEFAULT_SERVICE_END;
+		String serviceProfileCsv = args.length >= 11 ? args[10] : DEFAULT_SERVICE_PROFILE_CSV;
 
 		if (!Files.exists(Path.of(inputNetwork))) {
 			throw new IllegalArgumentException("Network file not found: " + Path.of(inputNetwork).toAbsolutePath());
@@ -137,13 +190,24 @@ public class PrepareShamalganTransitFromAssumptions {
 			throw new IllegalArgumentException("serviceStart must be before serviceEnd");
 		}
 
-		createVehicleType(transitVehicles, speedMps);
+		createVehicleType(transitVehicles, "busType_assumed", speedMps, DEFAULT_STD_SEATS, DEFAULT_STD_STANDING, DEFAULT_STD_LENGTH_M, DEFAULT_STD_PCU);
+
+		Map<String, RouteServiceProfile> routeServiceProfiles = readRouteServiceProfiles(
+			serviceProfileCsv,
+			serviceStartSec,
+			serviceEndSec,
+			headwaySec
+		);
+		if (!routeServiceProfiles.isEmpty()) {
+			System.out.println("Loaded service profile routes: " + routeServiceProfiles.size() + " from " + Path.of(serviceProfileCsv).toAbsolutePath());
+		}
 
 		boolean taggedRouteCsv = isTaggedRouteCsv(stopsCsv);
 		if (taggedRouteCsv) {
 			buildFromTaggedRouteCsv(
 				stopsCsv, network, schedule, transitVehicles, f,
-				speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+				speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec,
+				routeServiceProfiles
 			);
 		} else {
 			buildFromLegacyCsv(
@@ -237,7 +301,8 @@ public class PrepareShamalganTransitFromAssumptions {
 		double dwellSec,
 		double serviceStartSec,
 		double serviceEndSec,
-		int defaultHeadwaySec
+		int defaultHeadwaySec,
+		Map<String, RouteServiceProfile> routeServiceProfiles
 	) throws Exception {
 		List<TaggedStopSeed> tagged = readTaggedStopsCsv(stopsCsv);
 		if (tagged.isEmpty()) {
@@ -294,7 +359,22 @@ public class PrepareShamalganTransitFromAssumptions {
 			List<MappedStop> outbound = orderedOut;
 			List<MappedStop> inbound = reversedCopy(orderedInBase);
 
-			int routeHeadway = ROUTE_HEADWAY_OVERRIDES_SEC.getOrDefault(routeId, defaultHeadwaySec);
+			RouteOperationPlan operationPlan = buildRouteOperationPlan(
+				routeId,
+				routeServiceProfiles,
+				serviceStartSec,
+				serviceEndSec,
+				defaultHeadwaySec
+			);
+			createVehicleType(
+				transitVehicles,
+				operationPlan.vehicleTypeId(),
+				speedMps,
+				operationPlan.seats(),
+				operationPlan.standing(),
+				operationPlan.lengthM(),
+				operationPlan.pcu()
+			);
 			TransitLine line = f.createTransitLine(Id.create("line_" + routeId, TransitLine.class));
 			TransitRoute routeOut = createRoadRoute(
 				schedule,
@@ -306,9 +386,7 @@ public class PrepareShamalganTransitFromAssumptions {
 				outbound,
 				speedMps,
 				dwellSec,
-				serviceStartSec,
-				serviceEndSec,
-				routeHeadway
+				operationPlan
 			);
 			TransitRoute routeIn = createRoadRoute(
 				schedule,
@@ -320,9 +398,7 @@ public class PrepareShamalganTransitFromAssumptions {
 				inbound,
 				speedMps,
 				dwellSec,
-				serviceStartSec,
-				serviceEndSec,
-				routeHeadway
+				operationPlan
 			);
 			line.addRoute(routeOut);
 			line.addRoute(routeIn);
@@ -394,9 +470,266 @@ public class PrepareShamalganTransitFromAssumptions {
 		return out;
 	}
 
+	private static Map<String, RouteServiceProfile> readRouteServiceProfiles(
+		String path,
+		double defaultServiceStartSec,
+		double defaultServiceEndSec,
+		int defaultHeadwaySec
+	) throws Exception {
+		if (path == null || path.isBlank()) return Map.of();
+		Path csv = Path.of(path);
+		if (!Files.exists(csv)) return Map.of();
+
+		List<String> lines = Files.readAllLines(csv, StandardCharsets.UTF_8);
+		if (lines.isEmpty()) return Map.of();
+
+		String[] header = lines.get(0).split(",", -1);
+		int idxRoute = findColumn(header, "route_id");
+		int idxStart = findColumn(header, "period_start");
+		int idxEnd = findColumn(header, "period_end");
+		int idxHeadway = findColumn(header, "headway_sec");
+		if (idxRoute < 0 || idxStart < 0 || idxEnd < 0 || idxHeadway < 0) {
+			throw new IllegalArgumentException("Unexpected service profile CSV header in " + path);
+		}
+
+		int idxVehicleType = findColumn(header, "vehicle_type");
+		int idxSeats = findColumn(header, "seats");
+		int idxStanding = findColumn(header, "standing");
+		int idxLength = findColumn(header, "length_m");
+		int idxPcu = findColumn(header, "pcu");
+		int idxLayover = findColumn(header, "layover_sec");
+
+		Map<String, List<ServicePeriod>> periodsByRoute = new HashMap<>();
+		Map<String, String> vehicleTypeByRoute = new HashMap<>();
+		Map<String, Integer> seatsByRoute = new HashMap<>();
+		Map<String, Integer> standingByRoute = new HashMap<>();
+		Map<String, Double> lengthByRoute = new HashMap<>();
+		Map<String, Double> pcuByRoute = new HashMap<>();
+		Map<String, Integer> layoverByRoute = new HashMap<>();
+
+		for (int i = 1; i < lines.size(); i++) {
+			String line = lines.get(i);
+			if (line == null || line.isBlank()) continue;
+			String[] p = line.split(",", -1);
+
+			String routeId = getCsvCell(p, idxRoute);
+			if (routeId.isBlank()) continue;
+
+			double periodStart = parseTimeOrDefault(getCsvCell(p, idxStart), defaultServiceStartSec);
+			double periodEnd = parseTimeOrDefault(getCsvCell(p, idxEnd), defaultServiceEndSec);
+			if (!(periodStart < periodEnd)) continue;
+			int headway = Math.max(60, parseIntOrDefault(getCsvCell(p, idxHeadway), defaultHeadwaySec));
+			periodsByRoute.computeIfAbsent(routeId, k -> new ArrayList<>()).add(new ServicePeriod(periodStart, periodEnd, headway));
+
+			String vehicleType = getCsvCell(p, idxVehicleType);
+			if (!vehicleType.isBlank()) vehicleTypeByRoute.put(routeId, vehicleType);
+
+			String seats = getCsvCell(p, idxSeats);
+			if (!seats.isBlank()) seatsByRoute.put(routeId, parseIntOrDefault(seats, defaultSeatsForVehicleType(vehicleType)));
+
+			String standing = getCsvCell(p, idxStanding);
+			if (!standing.isBlank()) standingByRoute.put(routeId, parseIntOrDefault(standing, defaultStandingForVehicleType(vehicleType)));
+
+			String length = getCsvCell(p, idxLength);
+			if (!length.isBlank()) lengthByRoute.put(routeId, parseDoubleOrDefault(length, defaultLengthForVehicleType(vehicleType)));
+
+			String pcu = getCsvCell(p, idxPcu);
+			if (!pcu.isBlank()) pcuByRoute.put(routeId, parseDoubleOrDefault(pcu, defaultPcuForVehicleType(vehicleType)));
+
+			String layover = getCsvCell(p, idxLayover);
+			if (!layover.isBlank()) layoverByRoute.put(routeId, Math.max(0, parseIntOrDefault(layover, DEFAULT_LAYOVER_SEC)));
+		}
+
+		Map<String, RouteServiceProfile> out = new HashMap<>();
+		for (Map.Entry<String, List<ServicePeriod>> e : periodsByRoute.entrySet()) {
+			String routeId = e.getKey();
+			List<ServicePeriod> periods = new ArrayList<>(e.getValue());
+			periods.sort(Comparator.comparingDouble(ServicePeriod::startSec));
+
+			String vehicleTypeId = vehicleTypeByRoute.getOrDefault(
+				routeId,
+				ROUTE_VEHICLE_TYPE_OVERRIDES.getOrDefault(routeId, DEFAULT_STD_VEHICLE_TYPE)
+			);
+			int seats = seatsByRoute.getOrDefault(routeId, defaultSeatsForVehicleType(vehicleTypeId));
+			int standing = standingByRoute.getOrDefault(routeId, defaultStandingForVehicleType(vehicleTypeId));
+			double lengthM = lengthByRoute.getOrDefault(routeId, defaultLengthForVehicleType(vehicleTypeId));
+			double pcu = pcuByRoute.getOrDefault(routeId, defaultPcuForVehicleType(vehicleTypeId));
+			int layoverSec = layoverByRoute.getOrDefault(routeId, DEFAULT_LAYOVER_SEC);
+
+			out.put(
+				routeId,
+				new RouteServiceProfile(routeId, vehicleTypeId, seats, standing, lengthM, pcu, layoverSec, periods)
+			);
+		}
+		return out;
+	}
+
+	private static RouteOperationPlan buildRouteOperationPlan(
+		String routeId,
+		Map<String, RouteServiceProfile> serviceProfiles,
+		double serviceStartSec,
+		double serviceEndSec,
+		int defaultHeadwaySec
+	) {
+		RouteServiceProfile profile = serviceProfiles.get(routeId);
+		if (profile != null) {
+			List<ServicePeriod> periods = calibratePeriodsToTargetAverage(routeId, profile.periods(), serviceStartSec, serviceEndSec);
+			List<Double> departures = buildDepartureTimes(periods, serviceStartSec, serviceEndSec);
+			int minHeadway = periods.stream().mapToInt(ServicePeriod::headwaySec).min().orElse(defaultHeadwaySec);
+			return new RouteOperationPlan(
+				departures,
+				Math.max(60, minHeadway),
+				profile.layoverSec(),
+				profile.vehicleTypeId(),
+				profile.seats(),
+				profile.standing(),
+				profile.lengthM(),
+				profile.pcu()
+			);
+		}
+
+		int fallbackHeadway = ROUTE_HEADWAY_OVERRIDES_SEC.getOrDefault(routeId, defaultHeadwaySec);
+		String vehicleTypeId = ROUTE_VEHICLE_TYPE_OVERRIDES.getOrDefault(routeId, DEFAULT_STD_VEHICLE_TYPE);
+		List<Double> departures = buildDepartureTimes(
+			List.of(new ServicePeriod(serviceStartSec, serviceEndSec, fallbackHeadway)),
+			serviceStartSec,
+			serviceEndSec
+		);
+		return new RouteOperationPlan(
+			departures,
+			Math.max(60, fallbackHeadway),
+			DEFAULT_LAYOVER_SEC,
+			vehicleTypeId,
+			defaultSeatsForVehicleType(vehicleTypeId),
+			defaultStandingForVehicleType(vehicleTypeId),
+			defaultLengthForVehicleType(vehicleTypeId),
+			defaultPcuForVehicleType(vehicleTypeId)
+		);
+	}
+
+	private static List<Double> buildDepartureTimes(List<ServicePeriod> periods, double serviceStartSec, double serviceEndSec) {
+		List<ServicePeriod> ordered = new ArrayList<>(periods);
+		ordered.sort(Comparator.comparingDouble(ServicePeriod::startSec));
+
+		List<Integer> departures = new ArrayList<>();
+		Double lastDep = null;
+
+		for (ServicePeriod period : ordered) {
+			double start = Math.max(period.startSec(), serviceStartSec);
+			double end = Math.min(period.endSec(), serviceEndSec);
+			if (!(start <= end)) continue;
+
+			int headway = Math.max(60, period.headwaySec());
+			double dep;
+			if (lastDep == null) {
+				dep = start;
+			} else {
+				dep = lastDep + headway;
+				while (dep + 1e-9 < start) {
+					dep += headway;
+				}
+			}
+
+			for (; dep <= end + 1e-9; dep += headway) {
+				int rounded = (int) Math.round(dep);
+				if (departures.isEmpty() || departures.get(departures.size() - 1) != rounded) {
+					departures.add(rounded);
+					lastDep = dep;
+				}
+			}
+		}
+
+		if (departures.isEmpty()) {
+			departures.add((int) Math.round(serviceStartSec));
+		}
+
+		List<Double> out = new ArrayList<>();
+		for (Integer dep : departures) out.add(dep.doubleValue());
+		return out;
+	}
+
+	private static List<ServicePeriod> calibratePeriodsToTargetAverage(
+		String routeId,
+		List<ServicePeriod> periods,
+		double serviceStartSec,
+		double serviceEndSec
+	) {
+		Integer targetAvg = ROUTE_YANDEX_TARGET_AVG_HEADWAY_SEC.get(routeId);
+		if (targetAvg == null || periods.isEmpty()) return new ArrayList<>(periods);
+
+		double currentAvg = computeDurationWeightedAverageHeadway(periods, serviceStartSec, serviceEndSec);
+		if (!(currentAvg > 0.0) || !Double.isFinite(currentAvg)) return new ArrayList<>(periods);
+
+		double factor = targetAvg / currentAvg;
+		List<ServicePeriod> adjusted = new ArrayList<>();
+		for (ServicePeriod p : periods) {
+			int scaled = roundToNearestMinute(Math.max(300.0, Math.min(3600.0, p.headwaySec() * factor)));
+			adjusted.add(new ServicePeriod(p.startSec(), p.endSec(), scaled));
+		}
+
+		double adjustedAvg = computeDurationWeightedAverageHeadway(adjusted, serviceStartSec, serviceEndSec);
+		System.out.println(
+			"Route " + routeId + " headway calibration: sourceAvg=" + String.format("%.1f", currentAvg)
+				+ "s, targetAvg=" + targetAvg + "s, adjustedAvg=" + String.format("%.1f", adjustedAvg) + "s"
+		);
+		return adjusted;
+	}
+
+	private static double computeDurationWeightedAverageHeadway(
+		List<ServicePeriod> periods,
+		double serviceStartSec,
+		double serviceEndSec
+	) {
+		double weighted = 0.0;
+		double durationSum = 0.0;
+		for (ServicePeriod p : periods) {
+			double start = Math.max(serviceStartSec, p.startSec());
+			double end = Math.min(serviceEndSec, p.endSec());
+			double duration = end - start;
+			if (!(duration > 0.0)) continue;
+			weighted += duration * p.headwaySec();
+			durationSum += duration;
+		}
+		if (!(durationSum > 0.0)) return Double.NaN;
+		return weighted / durationSum;
+	}
+
+	private static int roundToNearestMinute(double seconds) {
+		return (int) (Math.round(seconds / 60.0) * 60);
+	}
+
+	private static String getCsvCell(String[] row, int idx) {
+		if (idx < 0 || idx >= row.length) return "";
+		return row[idx].trim();
+	}
+
+	private static int parseIntOrDefault(String value, int fallback) {
+		if (value == null || value.isBlank()) return fallback;
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			return fallback;
+		}
+	}
+
+	private static double parseDoubleOrDefault(String value, double fallback) {
+		if (value == null || value.isBlank()) return fallback;
+		try {
+			return Double.parseDouble(value.trim());
+		} catch (NumberFormatException e) {
+			return fallback;
+		}
+	}
+
+	private static double parseTimeOrDefault(String value, double fallback) {
+		if (value == null || value.isBlank()) return fallback;
+		return Time.parseTime(value.trim());
+	}
+
 	private static int findColumn(String[] header, String name) {
 		for (int i = 0; i < header.length; i++) {
-			if (name.equalsIgnoreCase(header[i].trim())) return i;
+			String col = header[i] == null ? "" : header[i].replace("\uFEFF", "").trim();
+			if (name.equalsIgnoreCase(col)) return i;
 		}
 		return -1;
 	}
@@ -464,9 +797,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		List<MappedStop> ordered,
 		double speedMps,
 		double dwellSec,
-		double serviceStartSec,
-		double serviceEndSec,
-		int headwaySec
+		RouteOperationPlan operationPlan
 	) {
 		List<TransitRouteStop> routeStops = new ArrayList<>();
 		List<List<Link>> segmentPaths = new ArrayList<>();
@@ -547,18 +878,34 @@ public class PrepareShamalganTransitFromAssumptions {
 			"pt"
 		);
 
-		Id<VehicleType> typeId = Id.create("busType_assumed", VehicleType.class);
+		double oneWaySec = routeStops.isEmpty() ? 0.0 : offset + dwellSec;
+		List<Double> departures = operationPlan.departuresSec().isEmpty() ? List.of(0.0) : operationPlan.departuresSec();
+		int minHeadwaySec = Math.max(60, operationPlan.minHeadwaySec());
+		int fleetSize = Math.max(1, (int) Math.ceil((oneWaySec + operationPlan.layoverSec()) / minHeadwaySec));
+		fleetSize = Math.min(fleetSize, departures.size());
+
+		Id<VehicleType> typeId = Id.create(operationPlan.vehicleTypeId(), VehicleType.class);
+		if (!vehicles.getVehicleTypes().containsKey(typeId)) {
+			throw new IllegalStateException("Vehicle type not found: " + typeId);
+		}
 		int depCount = 0;
-		for (double dep = serviceStartSec; dep <= serviceEndSec; dep += headwaySec) {
+		for (double dep : departures) {
 			Id<Departure> depId = Id.create(routeId + "_dep_" + depCount, Departure.class);
 			Departure departure = f.createDeparture(depId, dep);
-			Id<Vehicle> vehicleId = Id.createVehicleId(routeId + "_veh_" + depCount);
-			Vehicle veh = VehicleUtils.createVehicle(vehicleId, vehicles.getVehicleTypes().get(typeId));
-			vehicles.addVehicle(veh);
+			int slot = depCount % fleetSize;
+			Id<Vehicle> vehicleId = Id.createVehicleId(routeId + "_veh_" + slot);
+			if (!vehicles.getVehicles().containsKey(vehicleId)) {
+				Vehicle veh = VehicleUtils.createVehicle(vehicleId, vehicles.getVehicleTypes().get(typeId));
+				vehicles.addVehicle(veh);
+			}
 			departure.setVehicleId(vehicleId);
 			route.addDeparture(departure);
 			depCount++;
 		}
+		System.out.println(
+			"Route " + routeId + ": departures=" + depCount + ", fleet=" + fleetSize
+				+ ", vehicleType=" + operationPlan.vehicleTypeId()
+		);
 		return route;
 	}
 
@@ -797,19 +1144,49 @@ public class PrepareShamalganTransitFromAssumptions {
 		return new DijkstraResult(true, dist, new ArrayList<>(path));
 	}
 
-	private static void createVehicleType(Vehicles vehicles, double speedMps) {
-		Id<VehicleType> typeId = Id.create("busType_assumed", VehicleType.class);
+	private static void createVehicleType(
+		Vehicles vehicles,
+		String typeName,
+		double speedMps,
+		int seats,
+		int standing,
+		double lengthM,
+		double pcu
+	) {
+		Id<VehicleType> typeId = Id.create(typeName, VehicleType.class);
 		if (vehicles.getVehicleTypes().containsKey(typeId)) return;
 
 		VehicleType type = VehicleUtils.createVehicleType(typeId);
 		type.setMaximumVelocity(speedMps);
 		type.setNetworkMode("pt");
-		type.setLength(12.0);
-		type.setPcuEquivalents(2.5);
+		type.setLength(lengthM);
+		type.setPcuEquivalents(pcu);
 		VehicleCapacity cap = type.getCapacity();
-		cap.setSeats(35);
-		cap.setStandingRoom(30);
+		cap.setSeats(seats);
+		cap.setStandingRoom(standing);
 		vehicles.addVehicleType(type);
+	}
+
+	private static boolean isMinibusType(String vehicleTypeId) {
+		if (vehicleTypeId == null) return false;
+		String v = vehicleTypeId.trim().toLowerCase();
+		return v.contains("mini");
+	}
+
+	private static int defaultSeatsForVehicleType(String vehicleTypeId) {
+		return isMinibusType(vehicleTypeId) ? DEFAULT_MINIBUS_SEATS : DEFAULT_STD_SEATS;
+	}
+
+	private static int defaultStandingForVehicleType(String vehicleTypeId) {
+		return isMinibusType(vehicleTypeId) ? DEFAULT_MINIBUS_STANDING : DEFAULT_STD_STANDING;
+	}
+
+	private static double defaultLengthForVehicleType(String vehicleTypeId) {
+		return isMinibusType(vehicleTypeId) ? DEFAULT_MINIBUS_LENGTH_M : DEFAULT_STD_LENGTH_M;
+	}
+
+	private static double defaultPcuForVehicleType(String vehicleTypeId) {
+		return isMinibusType(vehicleTypeId) ? DEFAULT_MINIBUS_PCU : DEFAULT_STD_PCU;
 	}
 
 	private static TransitLine createLine(
