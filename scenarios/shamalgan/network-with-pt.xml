@@ -2264,24 +2264,6 @@
 		</node>
 		<node id="9958389868" x="632601.4817798911" y="4801280.130601404" >
 		</node>
-		<node id="pt_ptStop_node_10581598642" x="630950.2779400975" y="4802806.55760601" >
-		</node>
-		<node id="pt_ptStop_node_10698921185" x="632963.1591651685" y="4802959.313244241" >
-		</node>
-		<node id="pt_ptStop_node_10699433596" x="630345.8965099852" y="4801569.828367747" >
-		</node>
-		<node id="pt_ptStop_node_10705124687" x="630394.039330335" y="4801704.542210149" >
-		</node>
-		<node id="pt_ptStop_node_10705149058" x="633129.552527644" y="4804054.5150037315" >
-		</node>
-		<node id="pt_ptStop_node_12523335135" x="633078.5450921156" y="4804056.9986825045" >
-		</node>
-		<node id="pt_ptStop_node_12523335138" x="632983.3739037018" y="4802993.096861521" >
-		</node>
-		<node id="pt_ptStop_node_13323336515" x="634565.6642575064" y="4803719.994662269" >
-		</node>
-		<node id="pt_ptStop_node_6094479839" x="633855.9400081353" y="4803908.114111507" >
-		</node>
 	</nodes>
 
 <!-- ====================================================================== -->
@@ -20232,42 +20214,6 @@
 				<attribute name="origid" class="java.lang.String">1086851574</attribute>
 				<attribute name="type" class="java.lang.String">residential</attribute>
 			</attributes>
-		</link>
-		<link id="pt_0" from="pt_ptStop_node_13323336515" to="pt_ptStop_node_13323336515" length="50.0" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_1" from="pt_ptStop_node_13323336515" to="pt_ptStop_node_6094479839" length="734.2325498962044" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_10" from="pt_ptStop_node_10699433596" to="pt_ptStop_node_10705124687" length="143.05785712692673" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_11" from="pt_ptStop_node_10705124687" to="pt_ptStop_node_10581598642" length="1234.4388699751285" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_12" from="pt_ptStop_node_10581598642" to="pt_ptStop_node_10698921185" length="2018.6691435832126" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_13" from="pt_ptStop_node_10698921185" to="pt_ptStop_node_12523335138" length="39.36963868839637" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_14" from="pt_ptStop_node_12523335138" to="pt_ptStop_node_12523335135" length="1068.1501017163366" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_15" from="pt_ptStop_node_12523335135" to="pt_ptStop_node_10705149058" length="51.067867974140846" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_16" from="pt_ptStop_node_10705149058" to="pt_ptStop_node_6094479839" length="740.9939224167357" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_17" from="pt_ptStop_node_6094479839" to="pt_ptStop_node_13323336515" length="734.2325498962044" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_2" from="pt_ptStop_node_6094479839" to="pt_ptStop_node_10705149058" length="740.9939224167357" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_3" from="pt_ptStop_node_10705149058" to="pt_ptStop_node_12523335135" length="51.067867974140846" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_4" from="pt_ptStop_node_12523335135" to="pt_ptStop_node_12523335138" length="1068.1501017163366" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_5" from="pt_ptStop_node_12523335138" to="pt_ptStop_node_10698921185" length="39.36963868839637" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_6" from="pt_ptStop_node_10698921185" to="pt_ptStop_node_10581598642" length="2018.6691435832126" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_7" from="pt_ptStop_node_10581598642" to="pt_ptStop_node_10705124687" length="1234.4388699751285" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_8" from="pt_ptStop_node_10705124687" to="pt_ptStop_node_10699433596" length="143.05785712692673" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
-		</link>
-		<link id="pt_9" from="pt_ptStop_node_10699433596" to="pt_ptStop_node_10699433596" length="50.0" freespeed="8.333333333333334" capacity="10000.0" permlanes="1.0" oneway="1" modes="pt" >
 		</link>
 	</links>
 

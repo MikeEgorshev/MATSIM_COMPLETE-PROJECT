@@ -5,9 +5,12 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.network.NetworkWriter;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.population.routes.NetworkRoute;
+import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
 import org.matsim.core.utils.geometry.transformations.TransformationFactory;
@@ -32,35 +35,69 @@ import org.matsim.vehicles.Vehicles;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
- * Creates a simple PT supply from mapped OSM bus stops and assumptions.
+ * Creates bootstrap PT supply from stop data and assumptions.
+ * Supports:
+ * - legacy OSM stop CSV (no explicit routes): builds one outbound + one inbound line
+ * - tagged route CSV with route_id/stop_seq/x/y: builds one line per route_id with outbound+inbound route variants
  */
 public class PrepareShamalganTransitFromAssumptions {
 
 	private static final String TARGET_CRS = "EPSG:32643";
 	private static final double DEFAULT_SPEED_KMH = 30.0;
 	private static final double DEFAULT_DWELL_SEC = 60.0;
-	// Rounded from MATSim examples mean headway (~366 sec).
 	private static final int DEFAULT_HEADWAY_SEC = 360;
 	private static final String DEFAULT_SERVICE_START = "06:00:00";
 	private static final String DEFAULT_SERVICE_END = "23:00:00";
 
+	private static final Map<String, Integer> ROUTE_HEADWAY_OVERRIDES_SEC = Map.of(
+		"6", 600,
+		"11", 720,
+		"213", 1200,
+		"256", 1200
+	);
+	private static final Set<String> ROUTE_256_ALLOWED_ORIGIDS = Set.of("1384364335", "1233850824");
+	private static final Map<String, String> ROUTE_MANDATORY_LINK_OVERRIDES = Map.of(
+		// Corridor is tagged as osm_id=19687588 in new_map.gpkg (map__multilinestrings).
+		// In the road network extraction this corridor is represented by multiple origids; link 2011
+		// is used as an anchor to force route_213 through that branch.
+		"213", "2011"
+	);
+	private static final Set<String> ROUTE_213_BLOCKED_ORIGIDS = Set.of("1154458994", "230099145");
+	private static final double MAX_FORCED_SEGMENT_DETOUR_RATIO = 6.0;
+
 	private record StopSeed(String id, String name, double lon, double lat) {
 	}
 
-	private record MappedStop(String id, Coord coord) {
+	private record TaggedStopSeed(String routeId, int stopSeq, String stopId, String name, double x, double y) {
+	}
+
+	private record MappedStop(String id, Coord coord, Id<Link> linkId) {
+	}
+
+	private record DijkstraResult(boolean reachable, double distanceM, List<Link> links) {
+	}
+
+	private record NodeDist(Node node, double dist) {
 	}
 
 	public static void main(String[] args) throws Exception {
 		if (args.length < 5) {
 			System.out.println("Usage:");
-			System.out.println("  PrepareShamalganTransitFromAssumptions <input-network.xml> <bus-stops.csv> <output-network-with-pt.xml> <output-transitSchedule.xml> <output-transitVehicles.xml> [speedKmh] [dwellSec] [headwaySec] [serviceStart] [serviceEnd]");
-			System.out.println("Example:");
-			System.out.println("  PrepareShamalganTransitFromAssumptions scenarios/shamalgan/network.xml analysis-artifacts/pt-data/osm_bus_stops.csv scenarios/shamalgan/network-with-pt.xml scenarios/shamalgan/transitSchedule.xml scenarios/shamalgan/transitVehicles.xml 30 60 360 06:00:00 23:00:00");
+			System.out.println("  PrepareShamalganTransitFromAssumptions <input-network.xml> <stops.csv> <output-network-with-pt.xml> <output-transitSchedule.xml> <output-transitVehicles.xml> [speedKmh] [dwellSec] [headwaySec] [serviceStart] [serviceEnd]");
+			System.out.println("stops.csv can be:");
+			System.out.println("  legacy: osm_type,osm_id,name,lon,lat");
+			System.out.println("  tagged: route_id,stop_seq,stop_id,name,x,y");
 			return;
 		}
 
@@ -93,18 +130,6 @@ public class PrepareShamalganTransitFromAssumptions {
 		Vehicles transitVehicles = scenario.getTransitVehicles();
 		TransitScheduleFactory f = schedule.getFactory();
 
-		List<StopSeed> seeds = readStopsCsv(stopsCsv);
-		if (seeds.size() < 2) {
-			throw new IllegalStateException("Need at least 2 bus stops, found: " + seeds.size());
-		}
-
-		CoordinateTransformation tx = TransformationFactory.getCoordinateTransformation(
-			TransformationFactory.WGS84,
-			TARGET_CRS
-		);
-		List<MappedStop> mapped = mapStopsToNetwork(seeds, tx, network, f, schedule);
-		List<MappedStop> ordered = orderByNearestNeighbor(mapped);
-
 		double speedMps = speedKmh / 3.6;
 		double serviceStartSec = Time.parseTime(serviceStart);
 		double serviceEndSec = Time.parseTime(serviceEnd);
@@ -113,20 +138,23 @@ public class PrepareShamalganTransitFromAssumptions {
 		}
 
 		createVehicleType(transitVehicles, speedMps);
-		TransitLine outbound = createLine(
-			schedule, f, transitVehicles,
-			"line_bus_assumed_outbound", "route_outbound",
-			ordered, speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
-		);
-		TransitLine inbound = createLine(
-			schedule, f, transitVehicles,
-			"line_bus_assumed_inbound", "route_inbound",
-			reversedCopy(ordered), speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
-		);
-		schedule.addTransitLine(outbound);
-		schedule.addTransitLine(inbound);
 
-		new CreatePseudoNetwork(schedule, network, "pt_", speedMps, 10000.0).createNetwork();
+		boolean taggedRouteCsv = isTaggedRouteCsv(stopsCsv);
+		if (taggedRouteCsv) {
+			buildFromTaggedRouteCsv(
+				stopsCsv, network, schedule, transitVehicles, f,
+				speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+			);
+		} else {
+			buildFromLegacyCsv(
+				stopsCsv, network, schedule, transitVehicles, f,
+				speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+			);
+		}
+
+		if (!taggedRouteCsv) {
+			new CreatePseudoNetwork(schedule, network, "pt_", speedMps, 10000.0).createNetwork();
+		}
 
 		var validation = TransitScheduleValidator.validateAll(schedule, network);
 		if (!validation.isValid()) {
@@ -146,12 +174,160 @@ public class PrepareShamalganTransitFromAssumptions {
 		new MatsimVehicleWriter(transitVehicles).writeFile(outVehicles.toString());
 
 		System.out.println("Assumed PT supply created.");
-		System.out.println("Stops used: " + ordered.size());
-		System.out.println("Headway sec: " + headwaySec + " ; service: " + serviceStart + " - " + serviceEnd);
+		System.out.println("Lines created: " + schedule.getTransitLines().size());
+		System.out.println("Headway default sec: " + headwaySec + " ; service: " + serviceStart + " - " + serviceEnd);
 		System.out.println("Speed km/h: " + speedKmh + " ; dwell sec: " + dwellSec);
 		System.out.println("Network with PT: " + outNetwork.toAbsolutePath());
 		System.out.println("Transit schedule: " + outSchedule.toAbsolutePath());
 		System.out.println("Transit vehicles: " + outVehicles.toAbsolutePath());
+	}
+
+	private static boolean isTaggedRouteCsv(String path) throws Exception {
+		List<String> lines = Files.readAllLines(Path.of(path), StandardCharsets.UTF_8);
+		if (lines.isEmpty()) return false;
+		String[] header = lines.get(0).split(",", -1);
+		return findColumn(header, "route_id") >= 0 && findColumn(header, "stop_seq") >= 0;
+	}
+
+	private static void buildFromLegacyCsv(
+		String stopsCsv,
+		Network network,
+		TransitSchedule schedule,
+		Vehicles transitVehicles,
+		TransitScheduleFactory f,
+		double speedMps,
+		double dwellSec,
+		double serviceStartSec,
+		double serviceEndSec,
+		int headwaySec
+	) throws Exception {
+		List<StopSeed> seeds = readStopsCsv(stopsCsv);
+		if (seeds.size() < 2) {
+			throw new IllegalStateException("Need at least 2 bus stops, found: " + seeds.size());
+		}
+
+		CoordinateTransformation tx = TransformationFactory.getCoordinateTransformation(
+			TransformationFactory.WGS84,
+			TARGET_CRS
+		);
+		List<MappedStop> mapped = mapStopsToNetwork(seeds, tx, network, f, schedule);
+		List<MappedStop> ordered = orderByNearestNeighbor(mapped);
+
+		TransitLine outbound = createLine(
+			schedule, f, transitVehicles,
+			"line_bus_assumed_outbound", "route_outbound",
+			ordered, speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+		);
+		TransitLine inbound = createLine(
+			schedule, f, transitVehicles,
+			"line_bus_assumed_inbound", "route_inbound",
+			reversedCopy(ordered), speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+		);
+		schedule.addTransitLine(outbound);
+		schedule.addTransitLine(inbound);
+	}
+
+	private static void buildFromTaggedRouteCsv(
+		String stopsCsv,
+		Network network,
+		TransitSchedule schedule,
+		Vehicles transitVehicles,
+		TransitScheduleFactory f,
+		double speedMps,
+		double dwellSec,
+		double serviceStartSec,
+		double serviceEndSec,
+		int defaultHeadwaySec
+	) throws Exception {
+		List<TaggedStopSeed> tagged = readTaggedStopsCsv(stopsCsv);
+		if (tagged.isEmpty()) {
+			throw new IllegalStateException("No tagged route-stop rows found in: " + stopsCsv);
+		}
+
+		Map<String, MappedStop> stopByIdOut = new HashMap<>();
+		Map<String, MappedStop> stopByIdIn = new HashMap<>();
+		for (TaggedStopSeed s : tagged) {
+			if (stopByIdOut.containsKey(s.stopId)) continue;
+			Coord c = new Coord(s.x, s.y);
+			Link link = org.matsim.core.network.NetworkUtils.getNearestLinkExactly(network, c);
+			String stopName = s.name == null || s.name.isBlank() ? s.stopId : s.name;
+
+			String outStopId = s.stopId;
+			Id<TransitStopFacility> outFacId = Id.create("ptStop_" + outStopId, TransitStopFacility.class);
+			TransitStopFacility outFac = f.createTransitStopFacility(outFacId, c, false);
+			outFac.setName(stopName);
+			outFac.setLinkId(link.getId());
+			schedule.addStopFacility(outFac);
+			stopByIdOut.put(s.stopId, new MappedStop(outStopId, c, link.getId()));
+
+			Link reverse = findReverseLink(link);
+			Link inboundLink = reverse != null ? reverse : link;
+			String inStopId = s.stopId + ".1";
+			Id<TransitStopFacility> inFacId = Id.create("ptStop_" + inStopId, TransitStopFacility.class);
+			TransitStopFacility inFac = f.createTransitStopFacility(inFacId, c, false);
+			inFac.setName(stopName);
+			inFac.setLinkId(inboundLink.getId());
+			schedule.addStopFacility(inFac);
+			stopByIdIn.put(s.stopId, new MappedStop(inStopId, c, inboundLink.getId()));
+		}
+
+		Map<String, List<TaggedStopSeed>> byRoute = new HashMap<>();
+		for (TaggedStopSeed s : tagged) {
+			byRoute.computeIfAbsent(s.routeId, k -> new ArrayList<>()).add(s);
+		}
+
+		for (Map.Entry<String, List<TaggedStopSeed>> e : byRoute.entrySet()) {
+			String routeId = e.getKey();
+			List<TaggedStopSeed> rows = e.getValue();
+			rows.sort(Comparator.comparingInt(TaggedStopSeed::stopSeq));
+			if (rows.size() < 2) {
+				System.out.println("Skipping route " + routeId + " (needs >=2 stops, found " + rows.size() + ")");
+				continue;
+			}
+
+			List<MappedStop> orderedOut = new ArrayList<>();
+			List<MappedStop> orderedInBase = new ArrayList<>();
+			for (TaggedStopSeed row : rows) {
+				orderedOut.add(stopByIdOut.get(row.stopId));
+				orderedInBase.add(stopByIdIn.get(row.stopId));
+			}
+			List<MappedStop> outbound = orderedOut;
+			List<MappedStop> inbound = reversedCopy(orderedInBase);
+
+			int routeHeadway = ROUTE_HEADWAY_OVERRIDES_SEC.getOrDefault(routeId, defaultHeadwaySec);
+			TransitLine line = f.createTransitLine(Id.create("line_" + routeId, TransitLine.class));
+			TransitRoute routeOut = createRoadRoute(
+				schedule,
+				f,
+				transitVehicles,
+				network,
+				routeId,
+				"route_" + routeId + "_outbound",
+				outbound,
+				speedMps,
+				dwellSec,
+				serviceStartSec,
+				serviceEndSec,
+				routeHeadway
+			);
+			TransitRoute routeIn = createRoadRoute(
+				schedule,
+				f,
+				transitVehicles,
+				network,
+				routeId,
+				"route_" + routeId + "_inbound",
+				inbound,
+				speedMps,
+				dwellSec,
+				serviceStartSec,
+				serviceEndSec,
+				routeHeadway
+			);
+			line.addRoute(routeOut);
+			line.addRoute(routeIn);
+			schedule.addTransitLine(line);
+		}
 	}
 
 	private static List<StopSeed> readStopsCsv(String path) throws Exception {
@@ -165,7 +341,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		int idxLon = findColumn(header, "lon");
 		int idxLat = findColumn(header, "lat");
 		if (idxType < 0 || idxId < 0 || idxName < 0 || idxLon < 0 || idxLat < 0) {
-			throw new IllegalArgumentException("Unexpected bus stop CSV header in " + path);
+			throw new IllegalArgumentException("Unexpected legacy bus stop CSV header in " + path);
 		}
 
 		List<StopSeed> out = new ArrayList<>();
@@ -181,6 +357,39 @@ public class PrepareShamalganTransitFromAssumptions {
 			double lat = Double.parseDouble(p[idxLat].trim());
 			String stopId = type + "_" + id;
 			out.add(new StopSeed(stopId, name.isEmpty() ? stopId : name, lon, lat));
+		}
+		return out;
+	}
+
+	private static List<TaggedStopSeed> readTaggedStopsCsv(String path) throws Exception {
+		List<String> lines = Files.readAllLines(Path.of(path), StandardCharsets.UTF_8);
+		if (lines.isEmpty()) return List.of();
+
+		String[] header = lines.get(0).split(",", -1);
+		int idxRoute = findColumn(header, "route_id");
+		int idxSeq = findColumn(header, "stop_seq");
+		int idxStopId = findColumn(header, "stop_id");
+		int idxName = findColumn(header, "name");
+		int idxX = findColumn(header, "x");
+		int idxY = findColumn(header, "y");
+		if (idxRoute < 0 || idxSeq < 0 || idxStopId < 0 || idxName < 0 || idxX < 0 || idxY < 0) {
+			throw new IllegalArgumentException("Unexpected tagged route CSV header in " + path);
+		}
+
+		List<TaggedStopSeed> out = new ArrayList<>();
+		for (int i = 1; i < lines.size(); i++) {
+			String line = lines.get(i);
+			if (line == null || line.isBlank()) continue;
+			String[] p = line.split(",", -1);
+			int req = Math.max(idxY, Math.max(idxX, Math.max(idxName, Math.max(idxStopId, Math.max(idxSeq, idxRoute)))));
+			if (p.length <= req) continue;
+			String routeId = p[idxRoute].trim();
+			int stopSeq = Integer.parseInt(p[idxSeq].trim());
+			String stopId = p[idxStopId].trim();
+			String name = p[idxName].trim();
+			double x = Double.parseDouble(p[idxX].trim());
+			double y = Double.parseDouble(p[idxY].trim());
+			out.add(new TaggedStopSeed(routeId, stopSeq, stopId, name, x, y));
 		}
 		return out;
 	}
@@ -208,7 +417,7 @@ public class PrepareShamalganTransitFromAssumptions {
 			fac.setName(s.name);
 			fac.setLinkId(link.getId());
 			schedule.addStopFacility(fac);
-			mapped.add(new MappedStop(s.id, c));
+			mapped.add(new MappedStop(s.id, c, link.getId()));
 		}
 		return mapped;
 	}
@@ -243,6 +452,349 @@ public class PrepareShamalganTransitFromAssumptions {
 			out.add(in.get(i));
 		}
 		return out;
+	}
+
+	private static TransitRoute createRoadRoute(
+		TransitSchedule schedule,
+		TransitScheduleFactory f,
+		Vehicles vehicles,
+		Network network,
+		String baseRouteId,
+		String routeId,
+		List<MappedStop> ordered,
+		double speedMps,
+		double dwellSec,
+		double serviceStartSec,
+		double serviceEndSec,
+		int headwaySec
+	) {
+		List<TransitRouteStop> routeStops = new ArrayList<>();
+		List<List<Link>> segmentPaths = new ArrayList<>();
+		List<Double> segmentLengths = new ArrayList<>();
+		Set<String> allowedOrigids = "256".equals(baseRouteId) ? ROUTE_256_ALLOWED_ORIGIDS : null;
+		Set<String> blockedOrigids = "213".equals(baseRouteId) ? ROUTE_213_BLOCKED_ORIGIDS : null;
+
+		for (int i = 0; i < ordered.size() - 1; i++) {
+			MappedStop from = ordered.get(i);
+			MappedStop to = ordered.get(i + 1);
+			List<Link> segLinks = buildSegmentPath(network, from, to, allowedOrigids, blockedOrigids);
+			segmentPaths.add(segLinks);
+			segmentLengths.add(totalLength(segLinks));
+		}
+		String mandatoryLinkId = ROUTE_MANDATORY_LINK_OVERRIDES.get(baseRouteId);
+		if (mandatoryLinkId != null && !mandatoryLinkId.isBlank()) {
+			Link mandatory = network.getLinks().get(Id.createLinkId(mandatoryLinkId));
+			if (mandatory != null) {
+				applyForcedMandatoryCorridor(
+					routeId,
+					ordered,
+					network,
+					segmentPaths,
+					segmentLengths,
+					mandatory,
+					allowedOrigids,
+					blockedOrigids
+				);
+			}
+			if (!routeContainsLinkId(segmentPaths, mandatoryLinkId)) {
+				throw new IllegalStateException(
+					"Route " + routeId + " must include mandatory link " + mandatoryLinkId + " but it is missing."
+				);
+			}
+		}
+		if (blockedOrigids != null && !blockedOrigids.isEmpty()) {
+			String blocked = firstBlockedOrigidPresent(segmentPaths, blockedOrigids);
+			if (blocked != null) {
+				throw new IllegalStateException(
+					"Route " + routeId + " includes blocked origid " + blocked + " (rail crossing branch)."
+				);
+			}
+		}
+
+		List<Id<Link>> routeLinkIds = new ArrayList<>();
+		for (List<Link> segLinks : segmentPaths) {
+			for (Link l : segLinks) {
+				if (routeLinkIds.isEmpty() || !routeLinkIds.get(routeLinkIds.size() - 1).equals(l.getId())) {
+					routeLinkIds.add(l.getId());
+				}
+			}
+		}
+		if (routeLinkIds.size() < 2) {
+			throw new IllegalStateException("Route " + routeId + " produced too few network links: " + routeLinkIds.size());
+		}
+
+		double offset = 0.0;
+		for (int i = 0; i < ordered.size(); i++) {
+			MappedStop ms = ordered.get(i);
+			Id<TransitStopFacility> facId = Id.create("ptStop_" + ms.id, TransitStopFacility.class);
+			TransitStopFacility fac = schedule.getFacilities().get(facId);
+			if (fac == null) {
+				throw new IllegalStateException("Missing transit stop facility: " + facId);
+			}
+			double arrival = offset;
+			double departure = offset + dwellSec;
+			routeStops.add(f.createTransitRouteStop(fac, arrival, departure));
+			if (i < ordered.size() - 1) {
+				offset = departure + (segmentLengths.get(i) / speedMps);
+			}
+		}
+
+		NetworkRoute networkRoute = RouteUtils.createNetworkRoute(routeLinkIds);
+		TransitRoute route = f.createTransitRoute(
+			Id.create(routeId, TransitRoute.class),
+			networkRoute,
+			routeStops,
+			"pt"
+		);
+
+		Id<VehicleType> typeId = Id.create("busType_assumed", VehicleType.class);
+		int depCount = 0;
+		for (double dep = serviceStartSec; dep <= serviceEndSec; dep += headwaySec) {
+			Id<Departure> depId = Id.create(routeId + "_dep_" + depCount, Departure.class);
+			Departure departure = f.createDeparture(depId, dep);
+			Id<Vehicle> vehicleId = Id.createVehicleId(routeId + "_veh_" + depCount);
+			Vehicle veh = VehicleUtils.createVehicle(vehicleId, vehicles.getVehicleTypes().get(typeId));
+			vehicles.addVehicle(veh);
+			departure.setVehicleId(vehicleId);
+			route.addDeparture(departure);
+			depCount++;
+		}
+		return route;
+	}
+
+	private static void applyForcedMandatoryCorridor(
+		String routeId,
+		List<MappedStop> ordered,
+		Network network,
+		List<List<Link>> segmentPaths,
+		List<Double> segmentLengths,
+		Link mandatory,
+		Set<String> allowedOrigids,
+		Set<String> blockedOrigids
+	) {
+		double bestRatio = Double.POSITIVE_INFINITY;
+		int bestIdx = -1;
+		List<Link> bestForcedPath = null;
+		double bestForcedLen = Double.NaN;
+
+		for (int i = 0; i < segmentPaths.size(); i++) {
+			MappedStop from = ordered.get(i);
+			MappedStop to = ordered.get(i + 1);
+			List<Link> forced = buildSegmentPathViaMandatoryLink(network, from, to, mandatory, allowedOrigids, blockedOrigids);
+			if (forced == null || forced.isEmpty()) continue;
+			double baseLen = segmentLengths.get(i);
+			double forcedLen = totalLength(forced);
+			if (!(baseLen > 0.0) || !Double.isFinite(forcedLen)) continue;
+			double ratio = forcedLen / baseLen;
+			if (ratio < bestRatio) {
+				bestRatio = ratio;
+				bestIdx = i;
+				bestForcedPath = forced;
+				bestForcedLen = forcedLen;
+			}
+		}
+
+		if (bestIdx >= 0 && bestForcedPath != null && bestRatio <= MAX_FORCED_SEGMENT_DETOUR_RATIO) {
+			segmentPaths.set(bestIdx, bestForcedPath);
+			segmentLengths.set(bestIdx, bestForcedLen);
+			System.out.println(
+				"Applied mandatory corridor for " + routeId + " via link " + mandatory.getId()
+					+ " on segment " + (bestIdx + 1) + " with detour ratio " + String.format("%.2f", bestRatio)
+			);
+		}
+	}
+
+	private static List<Link> buildSegmentPath(
+		Network network,
+		MappedStop from,
+		MappedStop to,
+		Set<String> allowedOrigids,
+		Set<String> blockedOrigids
+	) {
+		Link fromLink = network.getLinks().get(from.linkId);
+		Link toLink = network.getLinks().get(to.linkId);
+		if (fromLink == null || toLink == null) {
+			throw new IllegalStateException("Stop links not found in network for " + from.id + " -> " + to.id);
+		}
+
+		List<Link> out = new ArrayList<>();
+		out.add(fromLink);
+		if (!fromLink.getId().equals(toLink.getId())) {
+			DijkstraResult core = shortestPathByLength(fromLink.getToNode(), toLink.getFromNode(), allowedOrigids, blockedOrigids);
+			if (!core.reachable) {
+				throw new IllegalStateException(
+					"No directed path between stop links: " + from.id + " (" + fromLink.getId() + ") -> "
+						+ to.id + " (" + toLink.getId() + ")"
+				);
+			}
+			for (Link l : core.links) {
+				if (!out.get(out.size() - 1).getId().equals(l.getId())) {
+					out.add(l);
+				}
+			}
+			if (!out.get(out.size() - 1).getId().equals(toLink.getId())) {
+				out.add(toLink);
+			}
+		}
+		return out;
+	}
+
+	private static List<Link> buildSegmentPathViaMandatoryLink(
+		Network network,
+		MappedStop from,
+		MappedStop to,
+		Link mandatory,
+		Set<String> allowedOrigids,
+		Set<String> blockedOrigids
+	) {
+		Link fromLink = network.getLinks().get(from.linkId);
+		Link toLink = network.getLinks().get(to.linkId);
+		if (fromLink == null || toLink == null) return null;
+
+		DijkstraResult pre = shortestPathByLength(fromLink.getToNode(), mandatory.getFromNode(), allowedOrigids, blockedOrigids);
+		DijkstraResult post = shortestPathByLength(mandatory.getToNode(), toLink.getFromNode(), allowedOrigids, blockedOrigids);
+		if (!pre.reachable || !post.reachable) {
+			return null;
+		}
+
+		List<Link> out = new ArrayList<>();
+		appendUnique(out, fromLink);
+		for (Link l : pre.links) appendUnique(out, l);
+		appendUnique(out, mandatory);
+		for (Link l : post.links) appendUnique(out, l);
+		appendUnique(out, toLink);
+		return out;
+	}
+
+	private static Link findReverseLink(Link link) {
+		Node from = link.getFromNode();
+		Node to = link.getToNode();
+		Link best = null;
+		double bestScore = Double.POSITIVE_INFINITY;
+		for (Link cand : to.getOutLinks().values()) {
+			if (!cand.getToNode().getId().equals(from.getId())) continue;
+			double score = Math.abs(cand.getLength() - link.getLength());
+			if (score < bestScore) {
+				bestScore = score;
+				best = cand;
+			}
+		}
+		return best;
+	}
+
+	private static boolean routeContainsLinkId(List<List<Link>> segmentPaths, String linkId) {
+		for (List<Link> seg : segmentPaths) {
+			for (Link link : seg) {
+				if (link.getId().toString().equals(linkId)) return true;
+			}
+		}
+		return false;
+	}
+
+	private static String firstBlockedOrigidPresent(List<List<Link>> segmentPaths, Set<String> blockedOrigids) {
+		for (List<Link> seg : segmentPaths) {
+			for (Link link : seg) {
+				String origid = getOrigid(link);
+				if (blockedOrigids.contains(origid)) {
+					return origid;
+				}
+			}
+		}
+		return null;
+	}
+
+	private static String getOrigid(Link link) {
+		Object orig = link.getAttributes().getAttribute("origid");
+		if (orig == null) return "";
+		if (orig instanceof Number n) {
+			double v = n.doubleValue();
+			if (Double.isFinite(v)) {
+				long rounded = Math.round(v);
+				if (Math.abs(v - rounded) <= 1e-6 * Math.max(1.0, Math.abs(v))) {
+					return Long.toString(rounded);
+				}
+			}
+			return orig.toString().trim();
+		}
+
+		String s = orig.toString().trim();
+		if (s.isEmpty()) return "";
+		try {
+			double v = Double.parseDouble(s);
+			if (Double.isFinite(v)) {
+				long rounded = Math.round(v);
+				if (Math.abs(v - rounded) <= 1e-6 * Math.max(1.0, Math.abs(v))) {
+					return Long.toString(rounded);
+				}
+			}
+		} catch (NumberFormatException ignored) {
+			// Keep original string representation for non-numeric origids.
+		}
+		return s;
+	}
+
+	private static void appendUnique(List<Link> links, Link link) {
+		if (links.isEmpty() || !links.get(links.size() - 1).getId().equals(link.getId())) {
+			links.add(link);
+		}
+	}
+
+	private static double totalLength(List<Link> links) {
+		return links.stream().mapToDouble(Link::getLength).sum();
+	}
+
+	private static DijkstraResult shortestPathByLength(Node start, Node goal, Set<String> allowedOrigids, Set<String> blockedOrigids) {
+		if (start.getId().equals(goal.getId())) {
+			return new DijkstraResult(true, 0.0, List.of());
+		}
+
+		Map<Id<Node>, Double> best = new HashMap<>();
+		Map<Id<Node>, Link> inLink = new HashMap<>();
+		Set<Id<Node>> done = new HashSet<>();
+		PriorityQueue<NodeDist> pq = new PriorityQueue<>(Comparator.comparingDouble(n -> n.dist));
+		best.put(start.getId(), 0.0);
+		pq.add(new NodeDist(start, 0.0));
+
+		while (!pq.isEmpty()) {
+			NodeDist cur = pq.poll();
+			Id<Node> curId = cur.node.getId();
+			if (!done.add(curId)) continue;
+			if (curId.equals(goal.getId())) break;
+
+			for (Link out : cur.node.getOutLinks().values()) {
+				String origid = getOrigid(out);
+				if (blockedOrigids != null && blockedOrigids.contains(origid)) continue;
+				if (allowedOrigids != null && !allowedOrigids.isEmpty()) {
+					if (!allowedOrigids.contains(origid)) continue;
+				}
+				Node nxt = out.getToNode();
+				Id<Node> nxtId = nxt.getId();
+				double cand = cur.dist + out.getLength();
+				double known = best.getOrDefault(nxtId, Double.POSITIVE_INFINITY);
+				if (cand + 1e-9 < known) {
+					best.put(nxtId, cand);
+					inLink.put(nxtId, out);
+					pq.add(new NodeDist(nxt, cand));
+				}
+			}
+		}
+
+		Double dist = best.get(goal.getId());
+		if (dist == null || !Double.isFinite(dist)) {
+			return new DijkstraResult(false, Double.NaN, List.of());
+		}
+
+		ArrayDeque<Link> path = new ArrayDeque<>();
+		Id<Node> cur = goal.getId();
+		while (!cur.equals(start.getId())) {
+			Link step = inLink.get(cur);
+			if (step == null) {
+				return new DijkstraResult(false, Double.NaN, List.of());
+			}
+			path.addFirst(step);
+			cur = step.getFromNode().getId();
+		}
+		return new DijkstraResult(true, dist, new ArrayList<>(path));
 	}
 
 	private static void createVehicleType(Vehicles vehicles, double speedMps) {
