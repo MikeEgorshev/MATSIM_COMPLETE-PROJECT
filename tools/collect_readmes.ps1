@@ -16,7 +16,6 @@ $skipDirPatterns = @(
     "\\.git\\",
     "\\target\\",
     "\\output\\",
-    "\\output-pt\\",
     "\\archive-outputs\\",
     "\\docs\\readme-hub\\"
 )

@@ -58,7 +58,6 @@ public class RunMatsim{
 	public static void run(Config config, boolean enableOtfvis, boolean enableSimwrapper) {
 
 		config.controller().setOverwriteFileSetting( OverwriteFileSetting.deleteDirectoryIfExists );
-		config.controller().setCompressionType(ControllerConfigGroup.CompressionType.none);
 
 		// possibly modify config here
 

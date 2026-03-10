@@ -56,7 +56,6 @@ public class ShamalganDashboardProvider implements DashboardProvider {
 
 				// Accept both output_transitSchedule.xml and output_transitSchedule.xml.gz
 				viz.transitSchedule = data.output("(*.)?output_transitSchedule.xml*");
-				viz.demand = data.compute(PublicTransitAnalysis.class, "pt_pax_volumes.csv.gz");
 			});
 		}
 	}

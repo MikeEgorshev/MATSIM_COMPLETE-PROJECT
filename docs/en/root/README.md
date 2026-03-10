@@ -2,6 +2,8 @@
 
 Transport simulation model for **Shamalgan (Zhibek Zholy), Kazakhstan** using MATSim.
 
+**Documentation:** [English](.) | [Русский](../../ru/root/README.md)
+
 This repository currently includes:
 - Road network built from OSM (`scenarios/shamalgan/network.xml`)
 - Synthetic population from derived zones (`scenarios/shamalgan/population.xml`)
@@ -58,15 +60,15 @@ powershell -ExecutionPolicy Bypass -File tools\archive_outputs.ps1 -KeepLatest 1
 
 OSM bus stops used for PT bootstrap:
 
-![OSM bus stops](analysis-artifacts/pt-data/osm_bus_stops_map.png)
+![OSM bus stops](../../../analysis-artifacts/pt-data/osm_bus_stops_map.png)
 
 Assumed PT network map:
 
-![Assumed PT network](analysis-artifacts/pt-data/assumed_pt_network_map.png)
+![Assumed PT network](../../../analysis-artifacts/pt-data/assumed_pt_network_map.png)
 
 Zone-based population derivation (example):
 
-![Zone derivation](analysis-artifacts/zone-derivation/04_density_roads_zones_new_map.png)
+![Zone derivation](../../../analysis-artifacts/zone-derivation/04_density_roads_zones_new_map.png)
 
 ## Repository Structure
 
@@ -75,9 +77,18 @@ Zone-based population derivation (example):
 - `src/main/java/org/matsim/project/`: Shamalgan preparation and run classes
 - `tools/`: utility scripts for extraction, QC, plotting, housekeeping
 - `analysis-artifacts/`: generated diagnostics, plots, and PT reference notes
-- **Documentation (EN / RU):** [docs/](docs/README.md) — index with [docs/en/](docs/en/root/README.md) and [docs/ru/](docs/ru/root/README.md)
+- [docs/en/progress/](../progress/): structured progress log and workstream status
 
 ## Data and Licensing
 
 - Code license: see `LICENSE`.
 - Input data in `original-input-data/` may have source-specific licenses and must be verified before redistribution.
+
+## See also
+
+- [New PC setup](NEW_PC_SETUP.md) — install and run on a new machine
+- [Run log and decisions](README_RUNNING.md)
+- [Shamalgan runbook](README_SHAMALGAN.md)
+- [Handoff](SHAMALGAN_HANDOFF.md)
+- [PT integration plan](SHAMALGAN_REAL_PT_INTEGRATION_PLAN.md)
+- [Archive](../../archive/) — session memory and continuity profile (historical)

@@ -1,8 +1,20 @@
-﻿# README Hub
+# README Hub
+
+**Auxiliary index:** auto-collected copies of README-style files for quick browsing. This is not the main documentation entry point.
+
+- **Main documentation index:** [docs/README.md](files/docs/README.md) — use it for EN/RU structure and navigation (docs/en/root/ and docs/ru/root/).
+
+Regenerate this hub (and the list below) with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/collect_readmes.ps1
+```
+
+---
 
 Collected README files (excluding root README.md).
 
-Generated: 2026-03-04 15:37:31
+Generated: 2026-03-06 17:07:28
 
 - Source: "analysis-artifacts\pt-data\README.md"
   - Copy: "docs/readme-hub/files/analysis-artifacts\pt-data\README.md"
@@ -26,3 +38,5 @@ Generated: 2026-03-04 15:37:31
   - Copy: "docs/readme-hub/files/original-input-data\shamalgan\README.md"
 - Source: "scenarios\shamalgan\README.md"
   - Copy: "docs/readme-hub/files/scenarios\shamalgan\README.md"
+- Source: "README_RUNNING.md"
+  - Copy: "docs/readme-hub/files/README_RUNNING.md"
