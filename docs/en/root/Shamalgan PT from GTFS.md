@@ -1,4 +1,4 @@
-# Shamalgan Real PT Integration Plan
+# Shamalgan PT from GTFS
 
 This plan starts from the currently working car + mode-labeled-pt baseline and upgrades to real MATSim transit operations.
 
@@ -22,14 +22,14 @@ This plan starts from the currently working car + mode-labeled-pt baseline and u
   - `scenarios/shamalgan/transitSchedule.xml`
   - `scenarios/shamalgan/transitVehicles.xml`
 - Added starter PT config:
-  - `scenarios/shamalgan/config-pt.xml`
+  - `scenarios/shamalgan/config.xml` (single config with PT)
 
 ## Phase 2: First real-PT run (next action)
 
 1. Place GTFS at `original-input-data/shamalgan/gtfs/shamalgan-gtfs.zip`.
 2. Run converter command from `scenarios/shamalgan/README.md`.
 3. Run:
-   - `RunShamalgan scenarios/shamalgan/config-pt.xml --simwrapper`
+   - `RunShamalgan scenarios/shamalgan/config.xml --simwrapper`
 4. Validate:
    - transit schedule + vehicles loaded in logs
    - non-zero PT boardings/trips in output analysis

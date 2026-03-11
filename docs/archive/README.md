@@ -1,8 +1,8 @@
 # Archive
 
-This folder holds historical and session-specific documents that are no longer part of the main documentation flow. They are kept for context and recovery.
+Historical session memory and continuity profile documents have been moved outside the repository to reduce clutter:
 
-- `SHAMALGAN_SESSION_MEMORY.md` — collaboration memory and conversation-restore context (2026-02-23).
-- `SHAMALGAN_CONTINUITY_PROFILE.md` — assistant persona and project-brain snapshot.
+- **Location:** `C:\IntelliJ Projects\archive outputs\`
+- **Files moved:** `SHAMALGAN_SESSION_MEMORY.md`, `SHAMALGAN_CONTINUITY_PROFILE.md`
 
-For current project status and runbooks, see [docs/en/root/](../en/root/) or [docs/ru/root/](../ru/root/).
+For current project status and runbooks, see [docs/en/root/](../en/root/) or [docs/ru/root/](../ru/root/). Run log: root [README_RUNNING.md](../../README_RUNNING.md) and [README_RUNNING_RU.md](../../README_RUNNING_RU.md).

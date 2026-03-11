@@ -51,7 +51,11 @@ import java.util.TreeSet;
  * Creates bootstrap PT supply from stop data and assumptions.
  * Supports:
  * - legacy OSM stop CSV (no explicit routes): builds one outbound + one inbound line
- * - tagged route CSV with route_id/stop_seq/x/y: builds one line per route_id with outbound+inbound route variants
+ * - tagged route CSV with route_id/stop_seq/stop_id/name/x/y and optional dwell_sec: builds one line per route_id
+ *   with outbound+inbound route variants. If dwell_sec column is present, per-stop dwell is used (seconds).
+ * - Service profile CSV (pt_service_profile.csv) may include optional speed_kmh per route for travel time.
+ * <p>
+ * Assumptions and validation: see analysis-artifacts/pt-data/PT_ASSUMPTIONS_AND_VALIDATION.md.
  */
 public class PrepareShamalganTransitFromAssumptions {
 
@@ -104,7 +108,8 @@ public class PrepareShamalganTransitFromAssumptions {
 	private record StopSeed(String id, String name, double lon, double lat) {
 	}
 
-	private record TaggedStopSeed(String routeId, int stopSeq, String stopId, String name, double x, double y) {
+	/** Use dwellSec < 0 to mean "use default dwell". */
+	private record TaggedStopSeed(String routeId, int stopSeq, String stopId, String name, double x, double y, double dwellSec) {
 	}
 
 	private record MappedStop(String id, Coord coord, Id<Link> linkId) {
@@ -119,6 +124,7 @@ public class PrepareShamalganTransitFromAssumptions {
 	private record ServicePeriod(double startSec, double endSec, int headwaySec) {
 	}
 
+	/** speedKmh &lt; 0 means use default. */
 	private record RouteServiceProfile(
 		String routeId,
 		String vehicleTypeId,
@@ -127,10 +133,12 @@ public class PrepareShamalganTransitFromAssumptions {
 		double lengthM,
 		double pcu,
 		int layoverSec,
-		List<ServicePeriod> periods
+		List<ServicePeriod> periods,
+		double speedKmh
 	) {
 	}
 
+	/** speedMps &lt; 0 means use default. */
 	private record RouteOperationPlan(
 		List<Double> departuresSec,
 		int minHeadwaySec,
@@ -139,7 +147,8 @@ public class PrepareShamalganTransitFromAssumptions {
 		int seats,
 		int standing,
 		double lengthM,
-		double pcu
+		double pcu,
+		double speedMps
 	) {
 	}
 
@@ -309,6 +318,8 @@ public class PrepareShamalganTransitFromAssumptions {
 			throw new IllegalStateException("No tagged route-stop rows found in: " + stopsCsv);
 		}
 
+		boolean hasPerStopDwell = tagged.stream().anyMatch(s -> s.dwellSec() >= 0);
+
 		Map<String, MappedStop> stopByIdOut = new HashMap<>();
 		Map<String, MappedStop> stopByIdIn = new HashMap<>();
 		for (TaggedStopSeed s : tagged) {
@@ -352,12 +363,17 @@ public class PrepareShamalganTransitFromAssumptions {
 
 			List<MappedStop> orderedOut = new ArrayList<>();
 			List<MappedStop> orderedInBase = new ArrayList<>();
+			List<Double> dwellsOut = hasPerStopDwell ? new ArrayList<>() : null;
 			for (TaggedStopSeed row : rows) {
 				orderedOut.add(stopByIdOut.get(row.stopId));
 				orderedInBase.add(stopByIdIn.get(row.stopId));
+				if (dwellsOut != null) {
+					dwellsOut.add(row.dwellSec() >= 0 ? row.dwellSec() : dwellSec);
+				}
 			}
 			List<MappedStop> outbound = orderedOut;
 			List<MappedStop> inbound = reversedCopy(orderedInBase);
+			List<Double> dwellsIn = dwellsOut != null ? reversedCopyDouble(dwellsOut) : null;
 
 			RouteOperationPlan operationPlan = buildRouteOperationPlan(
 				routeId,
@@ -386,6 +402,7 @@ public class PrepareShamalganTransitFromAssumptions {
 				outbound,
 				speedMps,
 				dwellSec,
+				dwellsOut,
 				operationPlan
 			);
 			TransitRoute routeIn = createRoadRoute(
@@ -398,6 +415,7 @@ public class PrepareShamalganTransitFromAssumptions {
 				inbound,
 				speedMps,
 				dwellSec,
+				dwellsIn,
 				operationPlan
 			);
 			line.addRoute(routeOut);
@@ -448,6 +466,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		int idxName = findColumn(header, "name");
 		int idxX = findColumn(header, "x");
 		int idxY = findColumn(header, "y");
+		int idxDwell = findColumn(header, "dwell_sec");
 		if (idxRoute < 0 || idxSeq < 0 || idxStopId < 0 || idxName < 0 || idxX < 0 || idxY < 0) {
 			throw new IllegalArgumentException("Unexpected tagged route CSV header in " + path);
 		}
@@ -465,7 +484,16 @@ public class PrepareShamalganTransitFromAssumptions {
 			String name = p[idxName].trim();
 			double x = Double.parseDouble(p[idxX].trim());
 			double y = Double.parseDouble(p[idxY].trim());
-			out.add(new TaggedStopSeed(routeId, stopSeq, stopId, name, x, y));
+			double dwellSec = -1.0;
+			if (idxDwell >= 0 && p.length > idxDwell) {
+				String dwellStr = getCsvCell(p, idxDwell);
+				if (!dwellStr.isBlank()) {
+					try {
+						dwellSec = Double.parseDouble(dwellStr.trim());
+					} catch (NumberFormatException ignored) { }
+				}
+			}
+			out.add(new TaggedStopSeed(routeId, stopSeq, stopId, name, x, y, dwellSec));
 		}
 		return out;
 	}
@@ -498,6 +526,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		int idxLength = findColumn(header, "length_m");
 		int idxPcu = findColumn(header, "pcu");
 		int idxLayover = findColumn(header, "layover_sec");
+		int idxSpeedKmh = findColumn(header, "speed_kmh");
 
 		Map<String, List<ServicePeriod>> periodsByRoute = new HashMap<>();
 		Map<String, String> vehicleTypeByRoute = new HashMap<>();
@@ -506,6 +535,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		Map<String, Double> lengthByRoute = new HashMap<>();
 		Map<String, Double> pcuByRoute = new HashMap<>();
 		Map<String, Integer> layoverByRoute = new HashMap<>();
+		Map<String, Double> speedKmhByRoute = new HashMap<>();
 
 		for (int i = 1; i < lines.size(); i++) {
 			String line = lines.get(i);
@@ -538,6 +568,14 @@ public class PrepareShamalganTransitFromAssumptions {
 
 			String layover = getCsvCell(p, idxLayover);
 			if (!layover.isBlank()) layoverByRoute.put(routeId, Math.max(0, parseIntOrDefault(layover, DEFAULT_LAYOVER_SEC)));
+
+			if (idxSpeedKmh >= 0 && p.length > idxSpeedKmh) {
+				String speedStr = getCsvCell(p, idxSpeedKmh);
+				if (!speedStr.isBlank()) {
+					double kmh = parseDoubleOrDefault(speedStr, -1.0);
+					if (kmh > 0) speedKmhByRoute.put(routeId, kmh);
+				}
+			}
 		}
 
 		Map<String, RouteServiceProfile> out = new HashMap<>();
@@ -555,10 +593,11 @@ public class PrepareShamalganTransitFromAssumptions {
 			double lengthM = lengthByRoute.getOrDefault(routeId, defaultLengthForVehicleType(vehicleTypeId));
 			double pcu = pcuByRoute.getOrDefault(routeId, defaultPcuForVehicleType(vehicleTypeId));
 			int layoverSec = layoverByRoute.getOrDefault(routeId, DEFAULT_LAYOVER_SEC);
+			double speedKmh = speedKmhByRoute.getOrDefault(routeId, -1.0);
 
 			out.put(
 				routeId,
-				new RouteServiceProfile(routeId, vehicleTypeId, seats, standing, lengthM, pcu, layoverSec, periods)
+				new RouteServiceProfile(routeId, vehicleTypeId, seats, standing, lengthM, pcu, layoverSec, periods, speedKmh)
 			);
 		}
 		return out;
@@ -576,6 +615,7 @@ public class PrepareShamalganTransitFromAssumptions {
 			List<ServicePeriod> periods = calibratePeriodsToTargetAverage(routeId, profile.periods(), serviceStartSec, serviceEndSec);
 			List<Double> departures = buildDepartureTimes(periods, serviceStartSec, serviceEndSec);
 			int minHeadway = periods.stream().mapToInt(ServicePeriod::headwaySec).min().orElse(defaultHeadwaySec);
+			double speedMps = profile.speedKmh() > 0 ? (profile.speedKmh() / 3.6) : -1.0;
 			return new RouteOperationPlan(
 				departures,
 				Math.max(60, minHeadway),
@@ -584,7 +624,8 @@ public class PrepareShamalganTransitFromAssumptions {
 				profile.seats(),
 				profile.standing(),
 				profile.lengthM(),
-				profile.pcu()
+				profile.pcu(),
+				speedMps
 			);
 		}
 
@@ -603,7 +644,8 @@ public class PrepareShamalganTransitFromAssumptions {
 			defaultSeatsForVehicleType(vehicleTypeId),
 			defaultStandingForVehicleType(vehicleTypeId),
 			defaultLengthForVehicleType(vehicleTypeId),
-			defaultPcuForVehicleType(vehicleTypeId)
+			defaultPcuForVehicleType(vehicleTypeId),
+			-1.0
 		);
 	}
 
@@ -787,6 +829,14 @@ public class PrepareShamalganTransitFromAssumptions {
 		return out;
 	}
 
+	private static List<Double> reversedCopyDouble(List<Double> in) {
+		List<Double> out = new ArrayList<>();
+		for (int i = in.size() - 1; i >= 0; i--) {
+			out.add(in.get(i));
+		}
+		return out;
+	}
+
 	private static TransitRoute createRoadRoute(
 		TransitSchedule schedule,
 		TransitScheduleFactory f,
@@ -797,11 +847,14 @@ public class PrepareShamalganTransitFromAssumptions {
 		List<MappedStop> ordered,
 		double speedMps,
 		double dwellSec,
+		List<Double> dwellSecPerStop,
 		RouteOperationPlan operationPlan
 	) {
 		List<TransitRouteStop> routeStops = new ArrayList<>();
 		List<List<Link>> segmentPaths = new ArrayList<>();
 		List<Double> segmentLengths = new ArrayList<>();
+		double effectiveSpeedMps = (operationPlan.speedMps() > 0) ? operationPlan.speedMps() : speedMps;
+
 		Set<String> allowedOrigids = "256".equals(baseRouteId) ? ROUTE_256_ALLOWED_ORIGIDS : null;
 		Set<String> blockedOrigids = "213".equals(baseRouteId) ? ROUTE_213_BLOCKED_ORIGIDS : null;
 
@@ -862,11 +915,13 @@ public class PrepareShamalganTransitFromAssumptions {
 			if (fac == null) {
 				throw new IllegalStateException("Missing transit stop facility: " + facId);
 			}
+			double stopDwell = (dwellSecPerStop != null && i < dwellSecPerStop.size())
+				? dwellSecPerStop.get(i) : dwellSec;
 			double arrival = offset;
-			double departure = offset + dwellSec;
+			double departure = offset + stopDwell;
 			routeStops.add(f.createTransitRouteStop(fac, arrival, departure));
 			if (i < ordered.size() - 1) {
-				offset = departure + (segmentLengths.get(i) / speedMps);
+				offset = departure + (segmentLengths.get(i) / effectiveSpeedMps);
 			}
 		}
 
@@ -878,7 +933,10 @@ public class PrepareShamalganTransitFromAssumptions {
 			"pt"
 		);
 
-		double oneWaySec = routeStops.isEmpty() ? 0.0 : offset + dwellSec;
+		double lastStopDwell = routeStops.isEmpty() ? dwellSec : (
+			(dwellSecPerStop != null && ordered.size() <= dwellSecPerStop.size())
+				? dwellSecPerStop.get(ordered.size() - 1) : dwellSec);
+		double oneWaySec = routeStops.isEmpty() ? 0.0 : offset + lastStopDwell;
 		List<Double> departures = operationPlan.departuresSec().isEmpty() ? List.of(0.0) : operationPlan.departuresSec();
 		int minHeadwaySec = Math.max(60, operationPlan.minHeadwaySec());
 		int fleetSize = Math.max(1, (int) Math.ceil((oneWaySec + operationPlan.layoverSec()) / minHeadwaySec));

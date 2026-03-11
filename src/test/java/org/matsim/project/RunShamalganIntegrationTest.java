@@ -42,8 +42,10 @@ class RunShamalganIntegrationTest {
 
 		assertThat(runOutput.resolve("output_config.xml")).exists();
 		assertThat(runOutput.resolve("scorestats.csv")).exists();
-		assertThat(runOutput.resolve("output_plans.xml")).exists();
-		assertThat(runOutput.resolve("ITERS").resolve("it.2").resolve("2.events.xml")).exists();
+		// config uses compressionType=gzip, so plans are written as .xml.gz
+		assertThat(runOutput.resolve("output_plans.xml.gz")).exists();
+		Path it2 = runOutput.resolve("ITERS").resolve("it.2");
+		assertThat(it2.resolve("2.events.xml.gz")).exists();
 	}
 
 	private static void createPopulationSample(Path inputPlans, Path outputPlans, int personsToKeep) {

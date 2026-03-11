@@ -59,7 +59,7 @@ Impact:
 
 ### 6) Medium: Portability issue from absolute output paths in scenario configs
 
-- `scenarios/shamalgan/config.xml` and `scenarios/shamalgan/config-pt.xml` use absolute Windows output paths.
+- `scenarios/shamalgan/config.xml` uses relative output paths (no absolute Windows paths).
 - MATSim guidance recommends relative paths and portable config usage.
 
 Impact:

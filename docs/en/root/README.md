@@ -41,7 +41,7 @@ Run default Shamalgan scenario:
 Run PT-enabled scenario with SimWrapper dashboards:
 
 ```powershell
-.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config-pt.xml --simwrapper"
+.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config.xml --simwrapper"
 ```
 
 Build assumed PT inputs from mapped OSM bus stops:

@@ -1,4 +1,4 @@
-# План интеграции реального ОТ (Шамалган)
+# Shamalgan PT from GTFS
 
 Переход от текущего базового сценария (авто + метка «pt») к реальным операциям ОТ в MATSim.
 
@@ -15,13 +15,13 @@
 - Класс `PrepareShamalganTransitFromGtfs`.
 - Входы: zip GTFS (WGS84), дорожная сеть, дата обслуживания.
 - Выходы: `network-with-pt.xml`, `transitSchedule.xml`, `transitVehicles.xml`.
-- Конфиг ОТ: `scenarios/shamalgan/config-pt.xml`.
+- Конфиг ОТ: `scenarios/shamalgan/config.xml` (единый конфиг с ОТ).
 
 ## Фаза 2: Первый прогон с реальным ОТ
 
 1. Положить GTFS в `original-input-data/shamalgan/gtfs/shamalgan-gtfs.zip`.
 2. Запустить конвертер (команда в `scenarios/shamalgan/README.md`).
-3. Запуск: `RunShamalgan scenarios/shamalgan/config-pt.xml --simwrapper`.
+3. Запуск: `RunShamalgan scenarios/shamalgan/config.xml --simwrapper`.
 4. Проверить: в логах загрузка расписания и транспорта, в анализе — ненулевые поездки ОТ.
 
 ## Фаза 3: Поведенческая реалистичность

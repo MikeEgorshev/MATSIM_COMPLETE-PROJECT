@@ -65,7 +65,7 @@ Build assumed PT inputs from mapped OSM bus stops (when GTFS is unavailable):
 Run PT-enabled scenario:
 
 ```powershell
-.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config-pt.xml --simwrapper"
+.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config.xml --simwrapper"
 ```
 
 Extract bus stop candidates from OSM map:
@@ -84,6 +84,6 @@ powershell -ExecutionPolicy Bypass -File tools\archive_outputs.ps1 -KeepLatest 1
 
 - Default `main.class` in `pom.xml` is now `org.matsim.project.RunShamalgan`.
 - This template repository also still contains Gunma code. Your Shamalgan run path is separate and does not depend on Gunma classes.
-- `config-pt.xml` is a starter config for real transit once GTFS is converted.
+- `config.xml` is the single scenario config with PT and SimWrapper support.
 - PT bootstrap defaults are documented in `scenarios/shamalgan/PT_BOOTSTRAP_SETTINGS.md`.
 - Example-derived PT assumption baselines are documented in `analysis-artifacts/pt-data/MATSIM_EXAMPLE_PT_BASELINES.md`.

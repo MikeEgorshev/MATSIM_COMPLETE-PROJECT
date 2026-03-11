@@ -1,0 +1,25 @@
+# Core plotting (used by most tools/ scripts)
+matplotlib>=3.6,<4
+
+# Used by build_pt_schedule_infographic, derive_shamalgan_zones
+numpy>=1.22,<3
+
+# Used by build_pt_map_html, derive_shamalgan_zones (CRS transform)
+pyproj>=3.4,<4
+
+# Used by derive_shamalgan_zones only (raster/GeoTIFF)
+tifffile>=2023.1.0
+
+# Used by src/main/python/calibrate.py and by runEval.sh (see src/main/sh/runEval.sh)
+pandas>=1.4,<3
+geopandas>=0.12,<1
+
+# Optional: required only for calibrate.py (MATSim mode-share calibration).
+# Install separately if you use that script; may need a specific version or fork.
+# matsim
+
+#Установка в виртуальное окружение:
+
+#python -m venv .venv
+#.venv\Scripts\activate
+#pip install -r requirements.txt

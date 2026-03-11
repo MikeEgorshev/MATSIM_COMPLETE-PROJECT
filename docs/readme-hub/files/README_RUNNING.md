@@ -2,6 +2,8 @@
 
 Living log of project moves, decisions, and outcomes.
 
+**Also in Russian:** [README_RUNNING_RU.md](README_RUNNING_RU.md)
+
 ## Operating Rule
 
 - Update this file after every user-assistant exchange.
@@ -44,7 +46,7 @@ Living log of project moves, decisions, and outcomes.
 
 ### Documentation Workflow Update
 - Added continuous update requirement:
-  - `docs/root/README_RUNNING.md` must be updated after every exchange.
+  - Run log in root `README_RUNNING.md` (EN) and `README_RUNNING_RU.md` (RU).
 - Added README collector and hub:
   - script: `tools/collect_readmes.ps1`
   - index: `docs/readme-hub/README.md`
@@ -67,7 +69,7 @@ Living log of project moves, decisions, and outcomes.
 - Added online corroboration notes for route-number presence (2GIS links) in `docs/progress/03_pt.md`.
 
 ### Repo Migration Prep (New PC)
-- Added `docs/root/NEW_PC_SETUP.md` with full dependency/install/run requirements for a clean machine.
+- Added `docs/en/root/NEW_PC_SETUP.md` with full dependency/install/run requirements for a clean machine.
 - Prepared to publish full project snapshot (including normally ignored outputs) to new repository using Git LFS for files above GitHub size limits.
 
 ### Repo Migration Completed
@@ -102,7 +104,6 @@ Living log of project moves, decisions, and outcomes.
 ### Phase 1 Implementation Started
 - Made scenario config output paths portable (relative):
   - `scenarios/shamalgan/config.xml` -> `output`
-  - `scenarios/shamalgan/config-pt.xml` -> `output`
 - Labeled assumption PT pipeline explicitly as bootstrap:
   - `scenarios/shamalgan/README.md`
   - `PrepareShamalganTransitFromAssumptions` class comment
@@ -113,8 +114,7 @@ Living log of project moves, decisions, and outcomes.
   - `.\mvnw.cmd -q -Dtest=RunShamalganIntegrationTest test` (pass)
 
 ### Output Folder Consolidation
-- Switched PT config output to the unified folder:
-  - `scenarios/shamalgan/config-pt.xml` now writes to `output`
+- Scenario config writes to unified folder: `scenarios/shamalgan/config.xml` -> `output`
 - Archived existing run directories:
   - `output` -> `archive-outputs/output-20260304-152923`
   - `output-pt` -> `archive-outputs/output-pt-20260304-152923`
@@ -122,10 +122,9 @@ Living log of project moves, decisions, and outcomes.
 
 ### Documentation Restructure and Cleanup
 - Moved all root-level Markdown docs into:
-  - `docs/root/`
+  - `docs/root/` (legacy); primary docs now in `docs/en/root/` and `docs/ru/root/`.
 - Added docs index:
   - `docs/README.md`
-- Updated doc references to new `docs/root/*` paths in continuity/handoff/session memory files.
 - Updated run log docs to unified output folder naming:
   - `docs/progress/04_runs.md` now references `output/`.
 - Regenerated README hub index/copies:
@@ -148,9 +147,8 @@ Living log of project moves, decisions, and outcomes.
 
 ### Output Path Cleanup
 - Deleted remaining live `output-pt/` folder from workspace.
-- Confirmed active scenario configs write to unified `output/`:
+- Confirmed active scenario config writes to unified `output/`:
   - `scenarios/shamalgan/config.xml`
-  - `scenarios/shamalgan/config-pt.xml`
 - Removed legacy `output-pt` skip pattern from:
   - `tools/collect_readmes.ps1`
 - Later (repo cleanup): removed temporary test output folders `output-smoke` and `output-smoke-triptest` and all commands that wrote to them; main run output remains `output/`.

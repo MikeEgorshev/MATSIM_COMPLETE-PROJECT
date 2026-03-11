@@ -14,7 +14,6 @@ This repository currently includes:
 The project goal is to build a reproducible Shamalgan baseline scenario and progressively replace assumptions with real observed data.
 
 Current PT status:
-- No reliable full GTFS yet for Almaty/Shamalgan corridor.
 - PT schedule is assumption-based from mapped stops.
 - Assumptions used in current PT build:
   - Bus speed: `30 km/h`
@@ -39,7 +38,7 @@ Run default Shamalgan scenario:
 Run PT-enabled scenario with SimWrapper dashboards:
 
 ```powershell
-.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config-pt.xml --simwrapper"
+.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config.xml --simwrapper"
 ```
 
 Build assumed PT inputs from mapped OSM bus stops:

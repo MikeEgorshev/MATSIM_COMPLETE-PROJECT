@@ -6,8 +6,8 @@ This scenario is prepared for Shamalgan (Almaty region).
 
 Copy your OpenStreetMap extract here, for example:
 
-- `original-input-data/shamalgan/Shamalgan.osm`
-- `original-input-data/shamalgan/map` (your newer, larger extract)
+- `original-input-data/shamalgan/map` (canonical; OSM XML, no extension or .osm)
+- or `original-input-data/shamalgan/Shamalgan.osm` for an older extract
 
 ## 2) Convert OSM to MATSim network
 
@@ -28,8 +28,8 @@ Alternative in IntelliJ:
 
 - Run main class `org.matsim.project.PrepareShamalganNetwork`
 - Program arguments:
-  - `original-input-data/shamalgan/Shamalgan.osm scenarios/shamalgan/network.xml EPSG:32643`
-  - (recommended now) `original-input-data/shamalgan/map scenarios/shamalgan/network.xml EPSG:32643`
+  - `original-input-data/shamalgan/map scenarios/shamalgan/network.xml EPSG:32643`
+  - or with poor-road profile: `original-input-data/shamalgan/map scenarios/shamalgan/network.xml EPSG:32643 poor`
 
 ## 3) Create population (plans)
 
@@ -94,7 +94,7 @@ Example:
 3. Run with PT-enabled config:
 
 ```powershell
-.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config-pt.xml --simwrapper"
+.\mvnw.cmd -q exec:java "-Dexec.mainClass=org.matsim.project.RunShamalgan" "-Dexec.args=scenarios/shamalgan/config.xml --simwrapper"
 ```
 
 ## 6) Build bootstrap PT supply from mapped bus stops (no GTFS)
@@ -127,7 +127,12 @@ Reference PT bootstrap defaults:
 - `scenarios/shamalgan/PT_BOOTSTRAP_SETTINGS.md`
 
 Important for PT usage checks:
-- `scenarios/shamalgan/config-pt.xml` includes `SubtourModeChoice` and transfer penalty (`additionalTransferTime=120`) so PT share can adapt during iterations.
+- `scenarios/shamalgan/config.xml` includes `SubtourModeChoice` and transfer penalty (`additionalTransferTime=120`) so PT share can adapt during iterations.
+
+Optional PT realism (bootstrap from tagged routes): per-stop dwell and per-route speed
+- **Tagged stops CSV** (`tagged_route_stops.csv`): optional column `dwell_sec` (seconds) per stop; if absent, global dwell (default 60 s) is used.
+- **Service profile** (`pt_service_profile.csv`): optional column `speed_kmh` per route (e.g. 25 for minibus, 32 for trunk); if absent, global speed (default 30 km/h) is used.
+- See `analysis-artifacts/pt-data/PT_ASSUMPTIONS_AND_VALIDATION.md`.
 
 ## 8) Export/share final scenario
 

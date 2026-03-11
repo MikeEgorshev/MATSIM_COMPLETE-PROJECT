@@ -1,5 +1,8 @@
 # Add own ignores on top, don't edit the template
 
+.cursor/
+docs/readme-hub/files/
+
 archive-outputs/
 
 # Common files to ignore when working with MATSim

@@ -2,7 +2,7 @@
 
 This file documents PT defaults copied from established MATSim scenario repos and adapted for Shamalgan.
 
-Reference configs inspected:
+Reference configs inspected (external repos; clone or copy locally if needed):
 - `analysis-artifacts/reference-matsim/matsim-lausitz/input/v2024.2/lausitz-v2024.2-10pct.config.xml`
 - `analysis-artifacts/reference-matsim/matsim-dresden/input/v1.0/dresden-v1.0-10pct.config.xml`
 
@@ -22,13 +22,13 @@ Reference configs inspected:
 
 Without mode-choice replanning, PT shares stay mostly fixed from initial plans.
 
-For Shamalgan PT test config (`config-pt.xml`), enable:
+For Shamalgan config (`config.xml`), enable:
 
 - `replanning.strategy = SubtourModeChoice` with non-zero weight
 - `subtourModeChoice.modes = car,pt,walk`
 - `subtourModeChoice.chainBasedModes = car`
 
-## Starting coefficients used in Shamalgan PT test config
+## Starting coefficients used in Shamalgan config
 
 - Car:
   - `constant = 0.0`

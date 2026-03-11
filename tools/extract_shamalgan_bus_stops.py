@@ -34,7 +34,7 @@ OUT_DIR = ROOT / "analysis-artifacts" / "pt-data"
 CSV_OUT = OUT_DIR / "osm_bus_stops.csv"
 GEOJSON_OUT = OUT_DIR / "osm_bus_stops.geojson"
 FILTERED_OUT_CSV = OUT_DIR / "osm_filtered_train_like_stops.csv"
-MAP_OUT = OUT_DIR / "osm_bus_stops_map.png"
+MAP_OUT = ROOT / "Visualization" / "osm_bus_stops_map.png"
 SUMMARY_CSV = OUT_DIR / "osm_pt_stop_screening_summary.csv"
 
 

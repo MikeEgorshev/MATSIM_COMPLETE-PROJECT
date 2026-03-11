@@ -23,7 +23,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 SCHEDULE = ROOT / "scenarios" / "shamalgan" / "transitSchedule.xml"
 NETWORK = ROOT / "scenarios" / "shamalgan" / "network-with-pt.xml"
-OUT_IMG = ROOT / "analysis-artifacts" / "pt-data" / "pt_schedule_infographic.png"
+OUT_IMG = ROOT / "Visualization" / "pt_schedule_infographic.png"
 
 LINE_COLORS = [
     "#0F766E",

@@ -28,7 +28,7 @@ public class PrepareShamalganNetwork {
 			System.out.println("Usage:");
 			System.out.println("  PrepareShamalganNetwork <input.osm/.osm.pbf> <output-network.xml> [targetCrs] [roadProfile]");
 			System.out.println("Example:");
-			System.out.println("  PrepareShamalganNetwork original-input-data/shamalgan/Shamalgan.osm scenarios/shamalgan/network.xml EPSG:32643 poor");
+			System.out.println("  PrepareShamalganNetwork original-input-data/shamalgan/map scenarios/shamalgan/network.xml EPSG:32643 poor");
 			return;
 		}
 

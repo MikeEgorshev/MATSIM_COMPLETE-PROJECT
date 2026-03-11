@@ -2,7 +2,7 @@
 
 ## Последний прогон с ОТ
 
-- Конфиг: `scenarios/shamalgan/config-pt.xml`
+- Конфиг: `scenarios/shamalgan/config.xml`
 - Выход: `output/`
 - Итерации: `0..10`
 - Статус: завершён успешно

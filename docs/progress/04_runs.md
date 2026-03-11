@@ -2,7 +2,7 @@
 
 ## Latest PT Run
 
-- Config: `scenarios/shamalgan/config-pt.xml`
+- Config: `scenarios/shamalgan/config.xml`
 - Output: `output/`
 - Iterations: `0..10`
 - Status: completed successfully

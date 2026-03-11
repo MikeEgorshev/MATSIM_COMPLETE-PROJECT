@@ -1,13 +1,14 @@
 # Documentation Index
 
-Project documentation is available in two languages. Use the same structure under `en/` and `ru/`.
+Project documentation is available in two languages. **Primary (canonical) documentation is in English:** `docs/en/`. Russian mirrors the same structure under `docs/ru/`.
 
-## English (EN)
+## English (EN) — primary
 
 - **Overview and runbooks:** [docs/en/root/](en/root/)
   - [README](en/root/README.md) — project overview, quick start, repository structure
   - [NEW_PC_SETUP](en/root/NEW_PC_SETUP.md) — install and run on a new machine
-  - [README_RUNNING](en/root/README_RUNNING.md) — run log and decision history
+  - [README_RUNNING](../README_RUNNING.md) — run log and decision history (root)
+  - [README_RUNNING_RU](../README_RUNNING_RU.md) — Russian run log (root)
   - [README_SHAMALGAN](en/root/README_SHAMALGAN.md) — Shamalgan runbook and commands
   - [SHAMALGAN_HANDOFF](en/root/SHAMALGAN_HANDOFF.md) — short handoff for new sessions
   - [SHAMALGAN_REAL_PT_INTEGRATION_PLAN](en/root/SHAMALGAN_REAL_PT_INTEGRATION_PLAN.md) — PT integration roadmap
@@ -19,7 +20,8 @@ Project documentation is available in two languages. Use the same structure unde
 - **Обзоры и руководства:** [docs/ru/root/](ru/root/)
   - [README](ru/root/README.md) — обзор проекта, быстрый старт, структура репозитория
   - [NEW_PC_SETUP](ru/root/NEW_PC_SETUP.md) — установка на новом ПК
-  - [README_RUNNING](ru/root/README_RUNNING.md) — журнал запусков и решений
+  - [README_RUNNING](../README_RUNNING.md) — журнал запусков (корень)
+  - [README_RUNNING_RU](../README_RUNNING_RU.md) — журнал на русском (корень)
   - [README_SHAMALGAN](ru/root/README_SHAMALGAN.md) — руководство по запуску Шамалгана
   - [SHAMALGAN_HANDOFF](ru/root/SHAMALGAN_HANDOFF.md) — краткий handoff
   - [SHAMALGAN_REAL_PT_INTEGRATION_PLAN](ru/root/SHAMALGAN_REAL_PT_INTEGRATION_PLAN.md) — план интеграции ОТ
@@ -33,7 +35,7 @@ Project documentation is available in two languages. Use the same structure unde
 
 ## Archive
 
-- **docs/archive/** — historical session memory and continuity profile. Not part of the main navigation. See [docs/archive/README.md](archive/README.md).
+- **docs/archive/** — previous session memory and continuity profile have been moved outside the repository to reduce clutter. See [docs/archive/README.md](archive/README.md).
 
 ## README Hub
 
