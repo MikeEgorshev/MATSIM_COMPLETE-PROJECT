@@ -55,9 +55,10 @@ For each synthetic person:
    - `car` with `CAR_MODE_SHARE` (currently `0.55`)
    - `pt` with `PT_MODE_SHARE` (currently `0.25`)
    - otherwise `walk`
-5. Add random coordinate jitter around selected zone center:
-   - approximately Gaussian with standard spread from `sigma_m`
-6. Snap coordinates to nearest network links in `network.xml`.
+5. Place activity on the network within `sigma_m` of the zone center:
+   - **Length-weighted placement:** In the circle of radius `sigma_m` around the zone center, links are chosen with probability proportional to their length; then a random point is chosen on the selected link. This avoids overloading short links (e.g. cul-de-sacs) in dense zones.
+   - **Fallback:** If no links fall within `sigma_m`, the previous behaviour is used: random coordinate jitter (approximately Gaussian with standard deviation `sigma_m`) and snap to the nearest link.
+6. Snap is only used in the fallback case; when length-weighted placement succeeds, the activity is already on the chosen link.
 7. Build plan:
    - employed: `home -> work -> home`
    - not employed: `home -> other -> home`

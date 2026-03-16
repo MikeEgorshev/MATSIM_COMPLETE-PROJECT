@@ -5,11 +5,13 @@
 	<module name="global">
 		<param name="randomSeed" value="4711" />
 		<param name="coordinateSystem" value="EPSG:32643" />
-		<param name="numberOfThreads" value="6" />
+		<param name="numberOfThreads" value="8" />
 	</module>
 
 	<module name="qsim">
-		<param name="numberOfThreads" value="6" />
+		<param name="numberOfThreads" value="8" />
+		<!-- End of simulated day; without this, PT runs can hang (vehicles/agents never "finish" and shutdown is delayed). -->
+		<param name="endTime" value="30:00:00" />
 	</module>
 
 	<module name="network">
@@ -37,7 +39,7 @@
 	</module>
 
 	<module name="controller">
-		<param name="outputDirectory" value="output" />
+		<param name="outputDirectory" value="scenarios/shamalgan/output" />
 		<param name="lastIteration" value="10" />
 		<param name="compressionType" value="gzip" />
 	</module>

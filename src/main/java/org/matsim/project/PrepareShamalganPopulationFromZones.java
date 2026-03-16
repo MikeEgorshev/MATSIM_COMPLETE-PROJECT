@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
@@ -80,11 +81,27 @@ public class PrepareShamalganPopulationFromZones {
 			boolean employed = rnd.nextDouble() < EMPLOYED_SHARE;
 			String mode = drawMode(rnd);
 
-			Coord homeCoord = jitter(homeZone.homeX, homeZone.homeY, homeZone.sigmaM, rnd);
-			Coord workCoord = jitter(workZone.workX, workZone.workY, workZone.sigmaM, rnd);
+			Coord homeCoord;
+			Link homeLink;
+			CoordAndLink homeWeighted = coordAndLinkWeightedByLength(homeZone.homeX, homeZone.homeY, homeZone.sigmaM, network, rnd);
+			if (homeWeighted != null) {
+				homeCoord = homeWeighted.coord;
+				homeLink = homeWeighted.link;
+			} else {
+				homeCoord = jitter(homeZone.homeX, homeZone.homeY, homeZone.sigmaM, rnd);
+				homeLink = NetworkUtils.getNearestLinkExactly(network, homeCoord);
+			}
 
-			Link homeLink = NetworkUtils.getNearestLinkExactly(network, homeCoord);
-			Link actLink = NetworkUtils.getNearestLinkExactly(network, workCoord);
+			Coord workCoord;
+			Link actLink;
+			CoordAndLink workWeighted = coordAndLinkWeightedByLength(workZone.workX, workZone.workY, workZone.sigmaM, network, rnd);
+			if (workWeighted != null) {
+				workCoord = workWeighted.coord;
+				actLink = workWeighted.link;
+			} else {
+				workCoord = jitter(workZone.workX, workZone.workY, workZone.sigmaM, rnd);
+				actLink = NetworkUtils.getNearestLinkExactly(network, workCoord);
+			}
 
 			Person person = population.getFactory().createPerson(Id.createPersonId("zone_" + i));
 			Plan plan = population.getFactory().createPlan();
@@ -199,6 +216,76 @@ public class PrepareShamalganPopulationFromZones {
 			sum += rnd.nextDouble();
 		}
 		return sum - 6.0;
+	}
+
+	/**
+	 * Length-weighted placement within sigma_m: select a link within radius proportionally to its length,
+	 * then a random point on that link. Returns null if no links within radius (caller should fallback to jitter + nearest link).
+	 */
+	private static CoordAndLink coordAndLinkWeightedByLength(double zoneX, double zoneY, double sigmaM, Network network, SplittableRandom rnd) {
+		List<Link> inRadius = new ArrayList<>();
+		List<Double> weights = new ArrayList<>();
+		for (Link link : network.getLinks().values()) {
+			Node from = link.getFromNode();
+			Node to = link.getToNode();
+			double x1 = from.getCoord().getX();
+			double y1 = from.getCoord().getY();
+			double x2 = to.getCoord().getX();
+			double y2 = to.getCoord().getY();
+			double dist = distancePointToSegment(zoneX, zoneY, x1, y1, x2, y2);
+			if (dist <= sigmaM) {
+				inRadius.add(link);
+				weights.add(link.getLength());
+			}
+		}
+		if (inRadius.isEmpty()) {
+			return null;
+		}
+		double sumWeight = 0.0;
+		for (Double w : weights) {
+			sumWeight += w;
+		}
+		if (sumWeight <= 0.0) {
+			return null;
+		}
+		double target = rnd.nextDouble() * sumWeight;
+		double cum = 0.0;
+		Link chosen = inRadius.get(0);
+		for (int j = 0; j < inRadius.size(); j++) {
+			cum += weights.get(j);
+			if (cum >= target) {
+				chosen = inRadius.get(j);
+				break;
+			}
+		}
+		// Random point on segment
+		Node from = chosen.getFromNode();
+		Node to = chosen.getToNode();
+		double x1 = from.getCoord().getX();
+		double y1 = from.getCoord().getY();
+		double x2 = to.getCoord().getX();
+		double y2 = to.getCoord().getY();
+		double t = rnd.nextDouble();
+		double cx = x1 + t * (x2 - x1);
+		double cy = y1 + t * (y2 - y1);
+		return new CoordAndLink(new Coord(cx, cy), chosen);
+	}
+
+	private static double distancePointToSegment(double px, double py, double x1, double y1, double x2, double y2) {
+		double dx = x2 - x1;
+		double dy = y2 - y1;
+		double len2 = dx * dx + dy * dy;
+		if (len2 < 1e-20) {
+			return Math.hypot(px - x1, py - y1);
+		}
+		double t = ((px - x1) * dx + (py - y1) * dy) / len2;
+		t = Math.max(0.0, Math.min(1.0, t));
+		double qx = x1 + t * dx;
+		double qy = y1 + t * dy;
+		return Math.hypot(px - qx, py - qy);
+	}
+
+	private record CoordAndLink(Coord coord, Link link) {
 	}
 
 	private record ZoneSpec(

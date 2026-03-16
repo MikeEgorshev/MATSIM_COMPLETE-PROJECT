@@ -43,6 +43,12 @@ From `output/scorestats.csv`:
   - deprecated routing module notice
   - PT synthetic link storage enlargement notices
 
+## Infinite or multi-day run (PT without endTime)
+
+- **Symptom:** Run does not finish in reasonable time (e.g. runs many days instead of one day).
+- **Cause:** With PT enabled, if `qsim.endTime` is not set, the QSim can keep waiting for PT vehicles/agents to "finish"; shutdown is delayed and the run appears to hang.
+- **Fix:** `scenarios/shamalgan/config.xml` now sets `<param name="endTime" value="30:00:00" />` in the qsim module so the simulated day ends at 30:00 (6:00 next day) and the run terminates. Do not remove this when running with PT.
+
 ## Interpretation
 
 - Run behavior is stable.

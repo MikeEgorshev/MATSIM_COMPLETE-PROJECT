@@ -20,6 +20,16 @@ NETWORK = ROOT / "scenarios" / "shamalgan" / "network-with-pt.xml"
 SCHEDULE = ROOT / "scenarios" / "shamalgan" / "transitSchedule.xml"
 OUT_HTML = ROOT / "Visualization" / "pt_routes_map.html"
 
+# Фирменные цвета по линиям, согласованные с инфографикой:
+# 6  → синий, 11 → зелёный, 213 → оранжевый, 256 → фиолетовый.
+LINE_COLORS = {
+    "line_6": "#1D4ED8",
+    "line_11": "#15803D",
+    "line_213": "#EA580C",
+    "line_256": "#7E22CE",
+}
+
+# Запасные цвета (если появятся дополнительные линии).
 COLORS = [
     "#00695C",
     "#C62828",
@@ -111,6 +121,7 @@ def main():
         raise RuntimeError("No routes found in transitSchedule.xml")
 
     route_data = []
+    line_summary: dict[str, dict] = {}
     all_lat, all_lng = [], []
     for line_id, route_id, link_refs, stop_coords in routes:
         if link_refs:
@@ -124,13 +135,20 @@ def main():
         for (lat, lng) in latlngs + stops:
             all_lat.append(lat)
             all_lng.append(lng)
-        route_data.append({
-            "line_id": line_id,
-            "route_id": route_id,
-            "latlngs": latlngs,
-            "stops": stops,
-            "n_stops": len(stop_coords),
-        })
+        route_data.append(
+            {
+                "line_id": line_id,
+                "route_id": route_id,
+                "latlngs": latlngs,
+                "stops": stops,
+                "n_stops": len(stop_coords),
+            }
+        )
+
+        # агрегированная статистика по линии (для легенды)
+        s = line_summary.setdefault(line_id, {"dirs": 0, "stops": 0})
+        s["dirs"] += 1
+        s["stops"] += len(stop_coords)
 
     if not route_data:
         raise RuntimeError("No route geometry to draw")
@@ -170,6 +188,7 @@ def main():
                 continue
         network_segments.append([[lat1, lng1], [lat2, lng2]])
     network_segments_js = json.dumps(network_segments)
+    line_summary_js = json.dumps(line_summary, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -187,7 +206,6 @@ def main():
     .legend-item {{ display: flex; align-items: center; gap: 8px; margin: 4px 0; }}
     .legend-swatch {{ width: 20px; height: 4px; border-radius: 2px; }}
     .legend-hint {{ margin: 4px 0 8px 0; font-size: 11px; color: #555; }}
-    .layer-note {{ position: absolute; top: 12px; right: 12px; z-index: 1000; background: #fff; padding: 8px 12px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); font-size: 11px; color: #555; max-width: 280px; }}
   </style>
 </head>
 <body>
@@ -197,11 +215,18 @@ def main():
     <p class="legend-hint">Маршруты построены по звеньям сети MATSim (отрезки узлов). Серый слой — та же сеть.</p>
     <div id="legendItems"></div>
   </div>
-  <div class="layer-note">Подложка OSM/Яндекс — для ориентира. Совпадение с осями дорог может отличаться (сеть MATSim — прямые отрезки).</div>
   <script>
     const routeData = {json.dumps(route_data, ensure_ascii=False)};
     const colors = {colors_js};
     const networkSegments = {network_segments_js};
+    const lineSummary = {line_summary_js};
+    // Фиксированные цвета линий (как в инфографике)
+    const LINE_COLORS = {{
+      "line_6": "#1D4ED8",
+      "line_11": "#15803D",
+      "line_213": "#EA580C",
+      "line_256": "#7E22CE",
+    }};
 
     const map = L.map("map", {{ center: [{center_lat}, {center_lng}], zoom: 13 }});
 
@@ -239,27 +264,43 @@ def main():
     }});
     networkLayer.addTo(map);
 
-    L.control.layers(
-      {{ "OpenStreetMap": osm, "Яндекс": yandex, "Яндекс (API)": yandexApi, "2GIS": dgis }},
-      {{ "Сеть MATSim (звенья)": networkLayer }},
-      {{ collapsed: true }}
-    ).addTo(map);
-
+    // Отдельный слой для каждой линии ОТ, чтобы можно было включать/выключать маршруты
+    const lineLayers = {{}};
     routeData.forEach((r, i) => {{
-      const color = colors[i % colors.length];
-      L.polyline(r.latlngs, {{ color, weight: 4, opacity: 0.9 }}).addTo(map);
+      const baseColor = LINE_COLORS[r.line_id] || colors[i % colors.length];
+      const color = baseColor;
+      if (!lineLayers[r.line_id]) {{
+        lineLayers[r.line_id] = L.layerGroup().addTo(map);
+      }}
+      const group = lineLayers[r.line_id];
+      L.polyline(r.latlngs, {{ color, weight: 4, opacity: 0.9 }}).addTo(group);
       r.stops.forEach(ll => {{
-        L.circleMarker(ll, {{ radius: 5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 1 }}).addTo(map);
+        L.circleMarker(ll, {{ radius: 5, fillColor: color, color: "#fff", weight: 1, fillOpacity: 1 }}).addTo(group);
       }});
     }});
 
-    // Legend
+    const overlays = {{ "Сеть MATSim (звенья)": networkLayer }};
+    Object.keys(lineLayers).sort().forEach(lineId => {{
+      const num = lineId.replace("line_", "");
+      overlays["Маршрут " + num] = lineLayers[lineId];
+    }});
+
+    L.control.layers(
+      {{ "OpenStreetMap": osm, "Яндекс": yandex, "Яндекс (API)": yandexApi, "2GIS": dgis }},
+      overlays,
+      {{ collapsed: false }}
+    ).addTo(map);
+
+    // Legend (по одной строке на линию, а не на каждое направление)
     const legendEl = document.getElementById("legendItems");
-    routeData.forEach((r, i) => {{
-      const color = colors[i % colors.length];
+    Object.keys(lineSummary).sort().forEach((lineId, idx) => {{
+      const info = lineSummary[lineId];
+      const color = LINE_COLORS[lineId] || colors[idx % colors.length];
       const div = document.createElement("div");
       div.className = "legend-item";
-      div.innerHTML = `<span class="legend-swatch" style="background:${{color}}"></span><span>line_${{r.line_id}} / ${{r.route_id}} (${{r.n_stops}} ост.)</span>`;
+      const num = lineId.replace("line_", "");
+      div.innerHTML = '<span class="legend-swatch" style="background:' + color + '"></span>' +
+                      '<span>Маршрут ' + num + ': ' + info.stops + ' ост., ' + info.dirs + ' направл.</span>';
       legendEl.appendChild(div);
     }});
 
