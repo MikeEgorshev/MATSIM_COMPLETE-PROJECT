@@ -54,12 +54,29 @@ def md_to_html(md_text: str, src_dir: pathlib.Path) -> str:
         return f"<{tag}{attrs}>{content}</{tag}>"
 
     html = re.sub(r"<(td|th)(\s[^>]*)?>(.+?)</\1>", clean_cell, html, flags=re.DOTALL)
+
+    # Нумерованные списки: fpdf2 рисует номера в одной точке (наложение). Заменяем <ol> на абзацы с явными номерами.
+    def replace_ol(m):
+        inner = m.group(1)
+        items = re.findall(r"<li>(.*?)</li>", inner, re.DOTALL)
+        if not items:
+            return m.group(0)
+        parts = []
+        for i, content in enumerate(items, 1):
+            content = content.strip()
+            parts.append(f"<p><strong>{i}.</strong> &nbsp;&nbsp; {content}</p>")
+        return "".join(parts)
+
+    html = re.sub(r"<ol>\s*(.*?)\s*</ol>", replace_ol, html, flags=re.DOTALL)
+
+    # Маркированные списки: отступ после буллета, чтобы не налезал на текст
+    html = re.sub(r"<li>\s*", "<li>&nbsp;&nbsp;&nbsp;&nbsp;", html)
     return html
 
 
 def build_pdf(md_file: pathlib.Path, out_pdf: pathlib.Path, src_dir: pathlib.Path) -> None:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_auto_page_break(auto=True, margin=15)
 
     pdf.add_font("Arial", "", str(FONTS_DIR / "arial.ttf"))
     pdf.add_font("Arial", "B", str(FONTS_DIR / "arialbd.ttf"))
@@ -67,11 +84,17 @@ def build_pdf(md_file: pathlib.Path, out_pdf: pathlib.Path, src_dir: pathlib.Pat
     pdf.add_font("Arial", "BI", str(FONTS_DIR / "arialbi.ttf"))
     pdf.add_font("Consolas", "", str(FONTS_DIR / "consola.ttf"))
     pdf.add_font("Consolas", "B", str(FONTS_DIR / "consolab.ttf"))
+    # Consolas I/BI — чтобы курсив внутри <code> не вызывал Undefined font: consolasI
+    for style, fname in (("I", "consolai.ttf"), ("BI", "consolaz.ttf")):
+        path = FONTS_DIR / fname
+        if path.exists():
+            pdf.add_font("Consolas", style, str(path))
 
-    pdf.set_font("Arial", size=10)
+    # Меньший базовый шрифт и поля — чтобы длинные строки (план презентации, списки) переносились без наложения
+    pdf.set_font("Arial", size=9)
     pdf.add_page()
-    pdf.set_left_margin(20)
-    pdf.set_right_margin(20)
+    pdf.set_left_margin(18)
+    pdf.set_right_margin(18)
 
     md_text = md_file.read_text(encoding="utf-8")
     html = md_to_html(md_text, src_dir)
@@ -79,10 +102,12 @@ def build_pdf(md_file: pathlib.Path, out_pdf: pathlib.Path, src_dir: pathlib.Pat
     pdf.write_html(
         html,
         tag_styles={
-            "h1": fpdf.html.FontFace(family="Arial", size_pt=18, color="#1a3c6e"),
-            "h2": fpdf.html.FontFace(family="Arial", size_pt=14, color="#1a3c6e"),
-            "h3": fpdf.html.FontFace(family="Arial", size_pt=12, color="#2d5b9e"),
-            "code": fpdf.html.FontFace(family="Consolas", size_pt=9),
+            "h1": fpdf.html.FontFace(family="Arial", size_pt=16, color="#1a3c6e"),
+            "h2": fpdf.html.FontFace(family="Arial", size_pt=13, color="#1a3c6e"),
+            "h3": fpdf.html.FontFace(family="Arial", size_pt=11, color="#2d5b9e"),
+            "p": fpdf.html.FontFace(family="Arial", size_pt=9),
+            "li": fpdf.html.FontFace(family="Arial", size_pt=9),
+            "code": fpdf.html.FontFace(family="Consolas", size_pt=8),
         },
     )
 

@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parents[1]
 NETWORK = ROOT / "scenarios" / "shamalgan" / "network-with-pt.xml"
 SCHEDULE = ROOT / "scenarios" / "shamalgan" / "transitSchedule.xml"
-OUT = ROOT / "Visualization" / "assumed_pt_network_map.png"
+OUT = ROOT / "Visualization" / "pt-data" / "assumed_pt_network_map.png"
 
 
 def read_network_links(path: Path):

@@ -13,11 +13,11 @@
 | Тип модели | Bootstrap/mockup без GTFS |
 | Маршруты | 4 линии (6, 11, 213, 256), 8 направлений |
 | Остановки | 58 (из `tagged_route_stops.csv`, извлечён из `new_map.gpkg`, разметка по Яндексу) |
-| Трасса | Dijkstra по дорожной сети; остановки привязываются к ближайшему звену |
+| Трасса | Dijkstra по дорожной сети; остановки привязываются к ближайшему линку |
 | Специальные правила | Маршрут 213 — обязательный коридор (link 2011); 256 — ограничение по origid |
 | Выходы | `network-with-pt.xml`, `transitSchedule.xml`, `transitVehicles.xml` |
 
-**Контроль качества (из отчётов):** макс. snap остановки до звена 20,6 м; остановок с snap >80 м: 0; недостижимых сегментов: 0.
+**Контроль качества (из отчётов):** макс. snap остановки до линка 20,6 м; остановок с snap >80 м: 0; недостижимых сегментов: 0.
 
 **Ссылки:** [OT_SYSTEM_REPORT.md](../../analysis-artifacts/pt-data/OT_SYSTEM_REPORT.md), [PT_ASSUMPTIONS_AND_VALIDATION.md](../../analysis-artifacts/pt-data/PT_ASSUMPTIONS_AND_VALIDATION.md), [PrepareShamalganTransitFromAssumptions.java](../../src/main/java/org/matsim/project/PrepareShamalganTransitFromAssumptions.java).
 

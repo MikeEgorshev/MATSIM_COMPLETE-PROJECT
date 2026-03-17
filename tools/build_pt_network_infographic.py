@@ -29,8 +29,8 @@ from matplotlib.lines import Line2D
 ROOT = Path(__file__).resolve().parents[1]
 NETWORK = ROOT / "scenarios" / "shamalgan" / "network-with-pt.xml"
 SCHEDULE = ROOT / "scenarios" / "shamalgan" / "transitSchedule.xml"
-OUT_IMG = ROOT / "Visualization" / "pt_network_infographic.png"
-OUT_MD = ROOT / "Visualization" / "pt_network_interpretation.md"
+OUT_IMG = ROOT / "Visualization" / "pt-data" / "pt_network_infographic.png"
+OUT_MD = ROOT / "Visualization" / "pt-data" / "pt_network_interpretation.md"
 
 LINE_COLORS = [
     "#0F766E",

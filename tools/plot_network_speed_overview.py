@@ -23,7 +23,7 @@ from matplotlib.lines import Line2D
 
 ROOT = Path(__file__).resolve().parents[1]
 NETWORK = ROOT / "scenarios" / "shamalgan" / "network.xml"
-OUT = ROOT / "Visualization" / "network_speed_overview.png"
+OUT = ROOT / "Visualization" / "network-qc" / "network_speed_overview.png"
 
 
 def read_network(path: Path):

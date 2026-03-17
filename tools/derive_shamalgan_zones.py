@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TIFF_PATH = ROOT / "original-input-data" / "shamalgan" / "kaz_pop_2025_CN_100m_R2025A_v1.tif"
 OSM_PATH = ROOT / "original-input-data" / "shamalgan" / "map"
 ZONES_OUT = ROOT / "original-input-data" / "shamalgan" / "zones-derived.csv"
-ANALYSIS_DIR = ROOT / "analysis-artifacts" / "zone-derivation"
+ANALYSIS_DIR = ROOT / "Visualization" / "zone-derivation"
 
 # Number of zone grid cells in lon/lat directions.
 ZONE_COLS = 10

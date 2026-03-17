@@ -7,9 +7,9 @@
 | Файл | Описание |
 |------|----------|
 | `population_by_link.csv` | По каждому link_id: число активностей home, work, other, total (отсортировано по total по убыванию). |
-| `population_on_network_map.png` | Карта: звенья с активностями, цвет — доля «дом» (синий) vs «работа/другое» (оранжевый), толщина линии — количество. CRS: EPSG:32643. |
+| `population_on_network_map.png` | В **Visualization/** — карта: звенья с активностями, цвет — доля «дом» (синий) vs «работа/другое» (оранжевый). CRS: EPSG:32643. |
 
-Интерактивная карта с подложкой OSM: [Visualization/population_on_network_map.html](../Visualization/population_on_network_map.html).
+Интерактивная карта: [Visualization/population_on_network_map.html](../Visualization/population_on_network_map.html).
 
 ## Как сгенерировать
 
