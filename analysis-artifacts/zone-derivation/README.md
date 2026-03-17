@@ -1,6 +1,8 @@
 # Shamalgan Zone Derivation
 
-Generated visuals:
+**Визуализации (PNG) перенесены в `Visualization/zone-derivation/`.** Скрипт `tools/derive_shamalgan_zones.py` пишет их туда.
+
+Generated visuals (in Visualization/zone-derivation/):
 - `01_density_and_zones.png`
 - `02_top_zones_home_weight.png`
 - `03_process_flow.png`

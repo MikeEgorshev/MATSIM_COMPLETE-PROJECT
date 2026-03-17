@@ -65,7 +65,7 @@ Assumed PT network map:
 
 Zone-based population derivation (example):
 
-![Zone derivation](analysis-artifacts/zone-derivation/04_density_roads_zones_new_map.png)
+![Zone derivation](Visualization/zone-derivation/04_density_roads_zones_new_map.png)
 
 ## Repository Structure
 

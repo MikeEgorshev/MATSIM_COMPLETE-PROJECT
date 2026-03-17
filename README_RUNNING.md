@@ -41,8 +41,8 @@ Living log of project moves, decisions, and outcomes.
 ### Artifacts Added
 - Network QC + reports: `analysis-artifacts/network-qc/`
 - Infographics:
-  - `analysis-artifacts/network-qc/network_lane_overview.png`
-  - `analysis-artifacts/network-qc/network_speed_overview.png`
+  - `Visualization/network-qc/network_lane_overview.png`
+  - `Visualization/network-qc/network_speed_overview.png`
 
 ### Documentation Workflow Update
 - Added continuous update requirement:

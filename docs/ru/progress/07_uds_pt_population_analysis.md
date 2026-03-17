@@ -22,7 +22,7 @@
 
 Схематическая карта маршрутов ОТ (смещённые линии по нормали, без наложения) для наглядности коридоров 6, 11, 213 и 256:
 
-![Схематическая карта маршрутов ОТ — Шамалган](img/pt_routes_schematic.png)
+![Схематическая карта маршрутов ОТ — Шамалган](../../Visualization/docs-progress/pt_routes_schematic.png)
 
 ### Население (распределение агентов)
 
@@ -44,7 +44,7 @@
 - **УДС:** перечитаны отчёт по дорожной сети и аудит полос. Связность: 1 компонента, 0 тупиков, 0 изолированных узлов.
 - **ОТ:** подтверждены 4 линии, 8 направлений, 58 остановок; 0 остановок с snap >80 м, 0 недостижимых сегментов; network-with-pt — 18 pt-линков, 2 компоненты.
 - **Конфиг:** единый `config.xml` с ОТ; пути к network-with-pt, transitSchedule, transitVehicles, useTransit=true.
-- **Население:** Генератор `PrepareShamalganPopulationFromZones` соответствует [POPULATION_ALGORITHM.md](../../scenarios/shamalgan/POPULATION_ALGORITHM.md). Входной файл `zones-derived.csv` содержит zone_id, home_x, home_y, home_weight, work_x, work_y, work_weight, sigma_m (EPSG:32643). Все активности привязаны к линкам (snap к сети); *файл facilities в конфиге не подключается*. Вывод зон: сетка 10×8, WORK_SHARE 0,95; выходы и визуализации в [analysis-artifacts/zone-derivation/](../../analysis-artifacts/zone-derivation/).
+- **Население:** Генератор `PrepareShamalganPopulationFromZones` соответствует [POPULATION_ALGORITHM.md](../../scenarios/shamalgan/POPULATION_ALGORITHM.md). Входной файл `zones-derived.csv` содержит zone_id, home_x, home_y, home_weight, work_x, work_y, work_weight, sigma_m (EPSG:32643). Все активности привязаны к линкам (snap к сети); *файл facilities в конфиге не подключается*. Вывод зон: сетка 10×8, WORK_SHARE 0,95; выходы и визуализации в [Visualization/zone-derivation/](../../Visualization/zone-derivation/).
 
 ---
 
@@ -101,10 +101,10 @@
 ## Инфографика: распределение агентов на УДС / системе координат
 
 - **Существующие визуализации** распределения по *зонам* (от которых зависит выбор координат до привязки к сети):
-  - [analysis-artifacts/zone-derivation/01_density_and_zones.png](../../analysis-artifacts/zone-derivation/01_density_and_zones.png) — плотность и зоны.
-  - [analysis-artifacts/zone-derivation/04_density_roads_zones_new_map.png](../../analysis-artifacts/zone-derivation/04_density_roads_zones_new_map.png) — плотность, дороги и зоны (новая граница карты).
-  - [analysis-artifacts/zone-derivation/06_zone_weight_map.png](../../analysis-artifacts/zone-derivation/06_zone_weight_map.png) — веса зон.
-  - [analysis-artifacts/zone-derivation/07_population_capture_curve.png](../../analysis-artifacts/zone-derivation/07_population_capture_curve.png) — доля населения по топ-зонам.
+  - [Visualization/zone-derivation/01_density_and_zones.png](../../Visualization/zone-derivation/01_density_and_zones.png) — плотность и зоны.
+  - [Visualization/zone-derivation/04_density_roads_zones_new_map.png](../../Visualization/zone-derivation/04_density_roads_zones_new_map.png) — плотность, дороги и зоны (новая граница карты).
+  - [Visualization/zone-derivation/06_zone_weight_map.png](../../Visualization/zone-derivation/06_zone_weight_map.png) — веса зон.
+  - [Visualization/zone-derivation/07_population_capture_curve.png](../../Visualization/zone-derivation/07_population_capture_curve.png) — доля населения по топ-зонам.
 
 Агенты размещаются по весам зон, затем разбрасываются с `sigma_m` и привязываются к ближайшему линку в `network.xml` (EPSG:32643). Пространственное распределение по сети следует этим картам зон. Прямую **инфографику агентов на сети** — см. задачу агенту визуализации ниже.
 
@@ -131,9 +131,9 @@
 2. **Карта (желательно):** наложение на сеть или на зоны — интенсивность «домов» и «работ» по линкам или по зонам (тепловая карта, размер точки/толщина линии по количеству агентов). Система координат: EPSG:32643; при выводе в PNG/HTML для удобства можно перевести в WGS84.
 3. **Сохранение артефактов** в `analysis-artifacts/` с понятными именами (например `population_by_link.csv`, `population_on_network_map.png` или `.html`) и при необходимости кратким README.
 
-**Контекст:** агенты генерируются по зонам (home_weight, work_weight), разброс sigma_m, затем snap к ближайшему линку. Инфографика нужна, чтобы видеть, на какие линки УДС и остановки ОТ приходится основная нагрузка и как это соотносится с топ-зонами по [06_zone_weight_map.png](../../analysis-artifacts/zone-derivation/06_zone_weight_map.png) и маршрутами ОТ.
+**Контекст:** агенты генерируются по зонам (home_weight, work_weight), разброс sigma_m, затем snap к ближайшему линку. Инфографика нужна, чтобы видеть, на какие линки УДС и остановки ОТ приходится основная нагрузка и как это соотносится с топ-зонами по [06_zone_weight_map.png](../../Visualization/zone-derivation/06_zone_weight_map.png) и маршрутами ОТ.
 
-**Реализация:** скрипт `tools/build_population_on_network_infographic.py` строит таблицу по линкам и карту. Артефакты: [population_by_link.csv](../../analysis-artifacts/population_by_link.csv), [population_on_network_map.png](../../analysis-artifacts/population_on_network_map.png), [population_on_network_map.html](../../Visualization/population_on_network_map.html). Краткое описание: [README_population_on_network.md](../../analysis-artifacts/README_population_on_network.md).
+**Реализация:** скрипт `tools/build_population_on_network_infographic.py` строит таблицу по линкам и карту. Артефакты: [population_by_link.csv](../../analysis-artifacts/population_by_link.csv), [population_on_network_map.png](../../Visualization/population_on_network_map.png), [population_on_network_map.html](../../Visualization/population_on_network_map.html). Краткое описание: [README_population_on_network.md](../../analysis-artifacts/README_population_on_network.md).
 
 ---
 
@@ -148,7 +148,7 @@
 - [06_gap_checklist_2026-03-04.md](06_gap_checklist_2026-03-04.md) — чеклист разрывов
 - [POPULATION_ALGORITHM.md](../../scenarios/shamalgan/POPULATION_ALGORITHM.md) — алгоритм населения
 - [02_population.md](02_population.md) — поток работ: население
-- [analysis-artifacts/zone-derivation/README.md](../../analysis-artifacts/zone-derivation/README.md) — вывод зон и визуализации
+- [Visualization/zone-derivation/README.md](../../Visualization/zone-derivation/README.md) — вывод зон и визуализации
 - [Visualization/pt_routes_map.html](../../Visualization/pt_routes_map.html) — карта маршрутов ОТ
 
 ---
@@ -176,7 +176,7 @@
 
 **Рекомендации:**
 
-1. **Покрытие зонами с высоким home/work weight:** сопоставить топ-20–30 зон по [07_population_capture_curve.png](../../analysis-artifacts/zone-derivation/07_population_capture_curve.png) (60–80% населения) с расположением остановок и коридоров маршрутов 6, 11, 213, 256. Цель — только проверить, что зоны с максимальным home_weight имеют пешеходный доступ к существующим остановкам (searchRadius 1000 м). **Маршруты расширять не следует:** они соответствуют реальной транспортной сети.
+1. **Покрытие зонами с высоким home/work weight:** сопоставить топ-20–30 зон по [07_population_capture_curve.png](../../Visualization/zone-derivation/07_population_capture_curve.png) (60–80% населения) с расположением остановок и коридоров маршрутов 6, 11, 213, 256. Цель — только проверить, что зоны с максимальным home_weight имеют пешеходный доступ к существующим остановкам (searchRadius 1000 м). **Маршруты расширять не следует:** они соответствуют реальной транспортной сети.
 2. **Использование анализа пассажиропотока:** после каждого прогона с ОТ запускать `tools/analyse_pt_boardings_from_events.py` по событиям последней итерации; сохранять `pt_boardings_alightings_by_route_hour.csv` в артефакты. Это даст базу для сравнения с наблюдениями при появлении APC/подсчётов и для проверки переполнений (boarding vs вместимость рейса).
 3. **Интервалы и окно обслуживания:** целевые средние интервалы (6 — 30 мин, 11 — 15 мин, 213 — 10 мин) и окно 06:00–23:00 зафиксированы в коде и в [PT_ASSUMPTIONS_AND_VALIDATION.md](../../analysis-artifacts/pt-data/PT_ASSUMPTIONS_AND_VALIDATION.md). При появлении расписаний/GTFS — перейти на реальные данные; до этого явно не менять без обоснования.
 4. **Пересадки:** additionalTransferTime=120 с — консервативная оценка. При калибровке по доле поездок с пересадкой можно скорректировать; отдельно проверить, что ключевые пересадочные узлы (например у станции Шамалган) в расписании достижимы за разумное время.

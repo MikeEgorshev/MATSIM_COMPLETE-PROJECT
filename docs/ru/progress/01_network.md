@@ -32,5 +32,5 @@
   - `analysis-artifacts/network-qc/shamalgan-road-network.md`
   - `analysis-artifacts/network-qc/shamalgan-road-network-poor-profile.md`
 - Визуальная диагностика:
-  - `analysis-artifacts/network-qc/network_lane_overview.png`
-  - `analysis-artifacts/network-qc/network_speed_overview.png`
+  - `Visualization/network-qc/network_lane_overview.png`
+  - `Visualization/network-qc/network_speed_overview.png`

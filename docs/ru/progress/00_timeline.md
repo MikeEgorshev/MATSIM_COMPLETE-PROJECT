@@ -16,8 +16,8 @@
   - `tools/network_qc_report.py`
   - `analysis-artifacts/network-qc/*`
 - Добавлены инфографики по полосам и скоростям:
-  - `analysis-artifacts/network-qc/network_lane_overview.png`
-  - `analysis-artifacts/network-qc/network_speed_overview.png`
+  - `Visualization/network-qc/network_lane_overview.png`
+  - `Visualization/network-qc/network_speed_overview.png`
 - Реализован профиль состояния дорог в построителе сети.
 - Обновлена политика скоростей до явных целевых значений:
   - местные `20 км/ч`

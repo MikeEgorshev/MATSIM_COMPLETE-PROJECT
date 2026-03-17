@@ -51,6 +51,8 @@ def md_to_html(md_text: str, src_dir: pathlib.Path) -> str:
     def clean_cell(m):
         tag, attrs, content = m.group(1), m.group(2) or "", m.group(3)
         content = re.sub(r'<(strong|em|code|b|i)>(.*?)</\1>', r"\2", content)
+        # fpdf2 does not support nested tags in td/th (e.g. <p>, <td>, <a>); strip any remaining tags
+        content = re.sub(r'<[^>]+>', '', content)
         return f"<{tag}{attrs}>{content}</{tag}>"
 
     html = re.sub(r"<(td|th)(\s[^>]*)?>(.+?)</\1>", clean_cell, html, flags=re.DOTALL)
