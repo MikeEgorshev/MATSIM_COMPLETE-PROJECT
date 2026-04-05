@@ -39,8 +39,8 @@
 	</module>
 
 	<module name="controller">
-		<param name="outputDirectory" value="scenarios/shamalgan/output" />
-		<param name="lastIteration" value="10" />
+		<param name="outputDirectory" value="scenarios/shamalgan/output_100it" />
+		<param name="lastIteration" value="100" />
 		<param name="compressionType" value="gzip" />
 	</module>
 

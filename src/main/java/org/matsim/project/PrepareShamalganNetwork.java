@@ -3,6 +3,9 @@ package org.matsim.project;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.NetworkWriter;
+import org.matsim.api.core.v01.network.Node;
+import org.matsim.api.core.v01.Coord;
+import org.matsim.api.core.v01.TransportMode;
 import org.matsim.contrib.osm.networkReader.SupersonicOsmNetworkReader;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.algorithms.NetworkCleaner;
@@ -16,12 +19,38 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Builds a car network from OSM. Lane counts follow OSM tags where present, else defaults aligned with
+ * {@code docs/ru/progress/10_final_report_shamalgan.md} (СН РК 3.03-01-2013 orienting capacities per lane).
+ * <p>
+ * Base capacity (before {@code poor}) is {@code capacityPerLane × numberOfLanes} per link direction.
+ * Profile {@code poor} then scales capacity by {@code capacityMultiplier} (0.70–0.85) and caps free-flow speed
+ * by speed class — see {@link #applyRoadConditionProfile}.
+ */
 public class PrepareShamalganNetwork {
+
+	/** СН РК 3.03-01-2013 orienting range ~600–1400 veh/h/lane (continuous flow); model uses 1000. */
+	private static final double CAP_PER_LANE_MAGISTRAL_VEH_H = 1000.0;
+	/** Urban arterial orienting ~200–600; model uses 300. */
+	private static final double CAP_PER_LANE_URBAN_ARTERIAL_VEH_H = 300.0;
+	/** Local / residential orienting ~20–200; model uses 100. */
+	private static final double CAP_PER_LANE_LOCAL_VEH_H = 100.0;
+
+	/**
+	 * Proxy for {@code traffic_signals} / {@code crossing=traffic_signals} from OSM.
+	 * <p>
+	 * We don't model signal phases, but we reduce capacity and free-flow speed on links adjacent
+	 * to signalized intersections to represent signal delays.
+	 */
+	private static final double TRAFFIC_SIGNAL_CAPACITY_MULT = 0.85;
+	private static final double TRAFFIC_SIGNAL_FREESPEED_MULT = 0.90;
 
 	public static void main(String[] args) {
 		if (args.length < 2) {
@@ -69,7 +98,9 @@ public class PrepareShamalganNetwork {
 
 		new NetworkCleaner().run(network);
 		applyLanePolicyFromOsm(inputPath, network);
+		applySnRkCapacityPolicy(network, inputPath);
 		applyRoadConditionProfile(network, roadProfile);
+		applyTrafficSignalProxyFromOsm(inputPath, network, transformation);
 		new NetworkWriter(network).write(outputPath.toString());
 
 		System.out.println("Network created: " + outputPath.toAbsolutePath());
@@ -110,6 +141,103 @@ public class PrepareShamalganNetwork {
 		System.out.println("  Directed segment rules parsed: " + lanesByDirectedSegment.size());
 		System.out.println("  Network links matched: " + matched);
 		System.out.println("  Network links with lane updates: " + changed);
+	}
+
+	/**
+	 * Sets link {@code capacity} = (capacity per lane for OSM highway class) × {@link Link#getNumberOfLanes()},
+	 * matching the report table (1000 / 300 / 100 veh/h per lane). Uses {@code origid} on links (OSM way id) when
+	 * the input is OSM XML; otherwise falls back to free-speed class.
+	 */
+	private static void applySnRkCapacityPolicy(Network network, Path inputOsm) {
+		Map<String, String> highwayByWayId = buildOsmWayIdToHighway(inputOsm);
+		if (highwayByWayId.isEmpty()) {
+			System.out.println("SN RK capacity policy: no OSM way→highway map (skip XML or empty); using free-speed fallback only.");
+		}
+		int updated = 0;
+		for (Link link : network.getLinks().values()) {
+			double perLane = resolveCapacityPerLaneVehPerHour(link, highwayByWayId);
+			if (!Double.isFinite(perLane) || perLane <= 0) {
+				continue;
+			}
+			double lanes = Math.max(1.0, link.getNumberOfLanes());
+			double totalCap = perLane * lanes;
+			if (Math.abs(totalCap - link.getCapacity()) > 1e-6) {
+				link.setCapacity(totalCap);
+				updated++;
+			}
+		}
+		System.out.println("SN RK capacity policy applied: links updated=" + updated + " (per-lane caps: magistral="
+			+ CAP_PER_LANE_MAGISTRAL_VEH_H + ", urban_arterial=" + CAP_PER_LANE_URBAN_ARTERIAL_VEH_H + ", local="
+			+ CAP_PER_LANE_LOCAL_VEH_H + ")");
+	}
+
+	private static Map<String, String> buildOsmWayIdToHighway(Path inputOsm) {
+		Map<String, String> out = new HashMap<>();
+		String fileName = inputOsm.getFileName().toString().toLowerCase();
+		if (!(fileName.endsWith(".osm") || fileName.endsWith(".xml") || fileName.equals("map"))) {
+			return out;
+		}
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		dbf.setNamespaceAware(false);
+		dbf.setExpandEntityReferences(false);
+		Document doc;
+		try {
+			doc = dbf.newDocumentBuilder().parse(inputOsm.toFile());
+		} catch (Exception e) {
+			return out;
+		}
+		NodeList wayNodes = doc.getElementsByTagName("way");
+		for (int i = 0; i < wayNodes.getLength(); i++) {
+			Element way = (Element) wayNodes.item(i);
+			String id = way.getAttribute("id");
+			if (id == null || id.isBlank()) {
+				continue;
+			}
+			Map<String, String> tags = readTags(way);
+			String highway = tags.get("highway");
+			if (highway == null || highway.isBlank() || !isRoadClassUsedForCar(highway)) {
+				continue;
+			}
+			out.put(id.trim(), highway.trim());
+		}
+		return out;
+	}
+
+	private static double resolveCapacityPerLaneVehPerHour(Link link, Map<String, String> highwayByWayId) {
+		Object orig = link.getAttributes().getAttribute("origid");
+		if (orig != null) {
+			String wayId = orig.toString().trim();
+			String highway = highwayByWayId.get(wayId);
+			if (highway != null) {
+				Double c = capacityPerLaneForHighway(highway);
+				if (c != null) {
+					return c;
+				}
+			}
+		}
+		return capacityPerLaneFromFreespeedFallback(link.getFreespeed());
+	}
+
+	private static Double capacityPerLaneForHighway(String highway) {
+		if (highway == null) {
+			return null;
+		}
+		return switch (highway) {
+			case "motorway", "motorway_link", "trunk", "trunk_link" -> CAP_PER_LANE_MAGISTRAL_VEH_H;
+			case "primary", "primary_link", "secondary", "secondary_link" -> CAP_PER_LANE_URBAN_ARTERIAL_VEH_H;
+			case "tertiary", "tertiary_link", "unclassified", "residential", "service", "living_street" -> CAP_PER_LANE_LOCAL_VEH_H;
+			default -> null;
+		};
+	}
+
+	/** When {@code origid} is missing (e.g. non-XML OSM source), map MATSim free speed to the same three capacity bands. */
+	private static double capacityPerLaneFromFreespeedFallback(double freespeedMps) {
+		SpeedClass sc = classifyByFreespeed(freespeedMps);
+		return switch (sc) {
+			case HIGHWAY -> CAP_PER_LANE_MAGISTRAL_VEH_H;
+			case ARTERIAL, COLLECTOR -> CAP_PER_LANE_URBAN_ARTERIAL_VEH_H;
+			case LOCAL -> CAP_PER_LANE_LOCAL_VEH_H;
+		};
 	}
 
 	private static void applyRoadConditionProfile(Network network, String roadProfile) {
@@ -161,6 +289,108 @@ public class PrepareShamalganNetwork {
 		System.out.println("Road condition profile applied: poor");
 		System.out.println("  Links with updated speed/capacity: " + changed);
 		System.out.println("  Target free-speeds (km/h): local=20, collector=30, arterial=45, highway=70");
+	}
+
+	private static void applyTrafficSignalProxyFromOsm(
+		Path inputOsm,
+		Network network,
+		CoordinateTransformation transformation
+	) {
+		String fileName = inputOsm.getFileName().toString().toLowerCase();
+		if (!(fileName.endsWith(".osm") || fileName.endsWith(".xml") || fileName.equals("map"))) {
+			System.out.println("Traffic signal proxy skipped (unsupported OSM XML source format): " + inputOsm);
+			return;
+		}
+
+		List<Coord> signalCoords = readOsmTrafficSignalCoords(inputOsm, transformation);
+		if (signalCoords.isEmpty()) {
+			System.out.println("Traffic signal proxy: no traffic_signals found in OSM; skipping.");
+			return;
+		}
+
+		Set<String> touchedNodeIds = new HashSet<>();
+		for (Coord sc : signalCoords) {
+			Link nearest = NetworkUtils.getNearestLinkExactly(network, sc);
+			if (nearest == null) {
+				continue;
+			}
+			// Penalize both approaches adjacent to the signalized intersection (link endpoints).
+			touchedNodeIds.add(nearest.getFromNode().getId().toString());
+			touchedNodeIds.add(nearest.getToNode().getId().toString());
+		}
+
+		if (touchedNodeIds.isEmpty()) {
+			System.out.println("Traffic signal proxy: signals found=" + signalCoords.size() + ", but no touched nodes mapped; skipping.");
+			return;
+		}
+
+		int changed = 0;
+		for (Link link : network.getLinks().values()) {
+			String fromId = link.getFromNode().getId().toString();
+			String toId = link.getToNode().getId().toString();
+			if (!touchedNodeIds.contains(fromId) && !touchedNodeIds.contains(toId)) {
+				continue;
+			}
+			// Apply only to car links.
+			if (link.getAllowedModes() != null && !link.getAllowedModes().contains(TransportMode.car)) {
+				continue;
+			}
+			double newFs = link.getFreespeed() * TRAFFIC_SIGNAL_FREESPEED_MULT;
+			double newCap = link.getCapacity() * TRAFFIC_SIGNAL_CAPACITY_MULT;
+			if (newFs > 0 && newCap > 0) {
+				link.setFreespeed(newFs);
+				link.setCapacity(newCap);
+				changed++;
+			}
+		}
+
+		System.out.println("Traffic signal proxy applied from OSM:");
+		System.out.println("  traffic_signals found=" + signalCoords.size());
+		System.out.println("  touched nodes=" + touchedNodeIds.size());
+		System.out.println("  links updated=" + changed + " (mult: cap=" + TRAFFIC_SIGNAL_CAPACITY_MULT + ", fs=" + TRAFFIC_SIGNAL_FREESPEED_MULT + ")");
+	}
+
+	private static List<Coord> readOsmTrafficSignalCoords(Path inputOsm, CoordinateTransformation transformation) {
+		List<Coord> out = new ArrayList<>();
+
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		dbf.setNamespaceAware(false);
+		dbf.setExpandEntityReferences(false);
+
+		Document doc;
+		try {
+			doc = dbf.newDocumentBuilder().parse(inputOsm.toFile());
+		} catch (Exception e) {
+			System.out.println("Traffic signal proxy: failed to parse OSM XML: " + inputOsm.toAbsolutePath());
+			return out;
+		}
+
+		NodeList nodeNodes = doc.getElementsByTagName("node");
+		for (int i = 0; i < nodeNodes.getLength(); i++) {
+			Element node = (Element) nodeNodes.item(i);
+			String latS = node.getAttribute("lat");
+			String lonS = node.getAttribute("lon");
+			if (latS == null || lonS == null || latS.isBlank() || lonS.isBlank()) {
+				continue;
+			}
+
+			Map<String, String> tags = readTags(node);
+			String highway = tags.get("highway");
+			String crossing = tags.get("crossing");
+			boolean isSignal = "traffic_signals".equals(highway) || "traffic_signals".equals(crossing);
+			if (!isSignal) {
+				continue;
+			}
+
+			try {
+				double lat = Double.parseDouble(latS);
+				double lon = Double.parseDouble(lonS);
+				out.add(transformation.transform(new Coord(lon, lat)));
+			} catch (Exception ignored) {
+				// skip malformed coords
+			}
+		}
+		return out;
 	}
 
 	private static SpeedClass classifyByFreespeed(double freespeedMetersPerSecond) {
@@ -249,10 +479,11 @@ public class PrepareShamalganNetwork {
 	}
 
 	private static int defaultPerDirectionLanes(String highway) {
+		// Defaults aligned with report table: magistral 4, urban arterial 2, local 2 (when OSM has no lanes tag).
 		return switch (highway) {
-			case "motorway", "motorway_link", "trunk", "trunk_link" -> 2;
-			case "primary", "primary_link", "secondary", "secondary_link" -> 1;
-			case "tertiary", "tertiary_link", "unclassified", "residential", "service", "living_street" -> 1;
+			case "motorway", "motorway_link", "trunk", "trunk_link" -> 4;
+			case "primary", "primary_link", "secondary", "secondary_link" -> 2;
+			case "tertiary", "tertiary_link", "unclassified", "residential", "service", "living_street" -> 2;
 			default -> 1;
 		};
 	}

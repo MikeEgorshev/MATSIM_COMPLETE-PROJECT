@@ -19,6 +19,7 @@
 - `docs/ru/progress/04_runs.md`: выполненные запуски и основные результаты
 - `docs/ru/progress/05_next_steps.md`: приоритизированный backlog
 - `docs/ru/progress/06_gap_checklist_2026-03-04.md`: чеклист разрывов относительно MATSim Book и matsim-berlin, с приоритизированным планом внедрения
+- `docs/ru/progress/11_development_pipeline_from_shamalgan.md`: пайплайн разработки сценария (воспроизводимый конвейер по опыту Шамалгана)
 - `docs/ru/progress/10_final_report_shamalgan.md`: итоговый отчёт по сценарию Шамалган
 - **`docs/ru/progress/REPORTS_AND_BUILDS.md`**: внутренний документ — какие отчёты есть, как собирать PDF, DOCX и презентацию PowerPoint (см. скрипт `tools/build_shamalgan_report_presentation.py`)
 

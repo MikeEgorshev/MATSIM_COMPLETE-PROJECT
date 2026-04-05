@@ -19,6 +19,7 @@
 package org.matsim.project;
 
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.contrib.otfvis.OTFVisLiveModule;
 import org.matsim.core.config.Config;
@@ -32,12 +33,23 @@ import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Leg;
+import org.matsim.core.scoring.ScoringFunction;
+import org.matsim.core.scoring.SumScoringFunction;
+import org.matsim.core.scoring.functions.CharyparNagelScoringFunctionFactory;
 
 /**
  * @author nagel
  *
  */
 public class RunMatsim{
+
+	/**
+	 * Additional penalty for walk legs longer than {@link #WALK_PENALTY_THRESHOLD_M}.
+	 * This is intentionally piecewise (thresholded) to avoid making short access walks too expensive.
+	 */
+	private static final double WALK_PENALTY_THRESHOLD_M = 1_000.0;
+	private static final double WALK_PENALTY_UTIL_PER_M_BEYOND_THRESHOLD = -0.001; // -1.0 util per extra km
 
 	public static void main(String[] args) {
 
@@ -73,6 +85,7 @@ public class RunMatsim{
 		Controler controler = new Controler( scenario ) ;
 		
 		// possibly modify controler here
+		installWalkDistancePenaltyScoring(controler, scenario);
 
 		if (enableOtfvis) {
 			controler.addOverridingModule(new OTFVisLiveModule());
@@ -84,6 +97,58 @@ public class RunMatsim{
 		// ---
 		
 		controler.run();
+	}
+
+	private static void installWalkDistancePenaltyScoring(Controler controler, Scenario scenario) {
+		CharyparNagelScoringFunctionFactory baseFactory = new CharyparNagelScoringFunctionFactory(scenario);
+		double brainExpBeta = scenario.getConfig().scoring().getBrainExpBeta();
+
+		controler.setScoringFunctionFactory(person -> {
+			ScoringFunction base = baseFactory.createNewScoringFunction(person);
+			WalkDistancePenaltyScoring penalty = new WalkDistancePenaltyScoring(brainExpBeta);
+
+			if (base instanceof SumScoringFunction sum) {
+				sum.addScoringFunction(penalty);
+				return sum;
+			}
+
+			throw new IllegalStateException("Expected SumScoringFunction from CharyparNagelScoringFunctionFactory, got: " + base.getClass().getName());
+		});
+	}
+
+	private static final class WalkDistancePenaltyScoring implements SumScoringFunction.BasicScoring, SumScoringFunction.LegScoring {
+		private final double brainExpBeta;
+		private double score = 0.0;
+
+		private WalkDistancePenaltyScoring(double brainExpBeta) {
+			this.brainExpBeta = brainExpBeta;
+		}
+
+		@Override
+		public void handleLeg(Leg leg) {
+			if (leg == null || leg.getMode() == null || !TransportMode.walk.equals(leg.getMode())) {
+				return;
+			}
+			if (leg.getRoute() == null) {
+				return;
+			}
+			double distM = leg.getRoute().getDistance();
+			if (!Double.isFinite(distM) || distM <= WALK_PENALTY_THRESHOLD_M) {
+				return;
+			}
+			double beyond = distM - WALK_PENALTY_THRESHOLD_M;
+			score += beyond * WALK_PENALTY_UTIL_PER_M_BEYOND_THRESHOLD * brainExpBeta;
+		}
+
+		@Override
+		public void finish() {
+			// no-op
+		}
+
+		@Override
+		public double getScore() {
+			return score;
+		}
 	}
 
 	private static void fillMissingActivityCoordsFromLinks(Scenario scenario) {

@@ -39,6 +39,7 @@ public class PrepareShamalganPopulationFromZones {
 	private static final double CAR_MODE_SHARE = 0.55;
 	private static final double PT_MODE_SHARE = 0.25;
 	private static final long RANDOM_SEED = 20260217L;
+	private static final double PLACEMENT_RADIUS_M = 300.0;
 
 	public static void main(String[] args) throws Exception {
 		if (args.length < 3) {
@@ -83,23 +84,23 @@ public class PrepareShamalganPopulationFromZones {
 
 			Coord homeCoord;
 			Link homeLink;
-			CoordAndLink homeWeighted = coordAndLinkWeightedByLength(homeZone.homeX, homeZone.homeY, homeZone.sigmaM, network, rnd);
+			CoordAndLink homeWeighted = coordAndLinkWeightedByLength(homeZone.homeX, homeZone.homeY, PLACEMENT_RADIUS_M, network, rnd);
 			if (homeWeighted != null) {
 				homeCoord = homeWeighted.coord;
 				homeLink = homeWeighted.link;
 			} else {
-				homeCoord = jitter(homeZone.homeX, homeZone.homeY, homeZone.sigmaM, rnd);
+				homeCoord = jitter(homeZone.homeX, homeZone.homeY, PLACEMENT_RADIUS_M, rnd);
 				homeLink = NetworkUtils.getNearestLinkExactly(network, homeCoord);
 			}
 
 			Coord workCoord;
 			Link actLink;
-			CoordAndLink workWeighted = coordAndLinkWeightedByLength(workZone.workX, workZone.workY, workZone.sigmaM, network, rnd);
+			CoordAndLink workWeighted = coordAndLinkWeightedByLength(workZone.workX, workZone.workY, PLACEMENT_RADIUS_M, network, rnd);
 			if (workWeighted != null) {
 				workCoord = workWeighted.coord;
 				actLink = workWeighted.link;
 			} else {
-				workCoord = jitter(workZone.workX, workZone.workY, workZone.sigmaM, rnd);
+				workCoord = jitter(workZone.workX, workZone.workY, PLACEMENT_RADIUS_M, rnd);
 				actLink = NetworkUtils.getNearestLinkExactly(network, workCoord);
 			}
 
@@ -160,7 +161,7 @@ public class PrepareShamalganPopulationFromZones {
 				continue;
 			}
 			String[] p = line.split(",");
-			if (p.length < 8) {
+			if (p.length < 7) {
 				continue;
 			}
 			zones.add(new ZoneSpec(
@@ -170,8 +171,7 @@ public class PrepareShamalganPopulationFromZones {
 					Double.parseDouble(p[3].trim()),
 					Double.parseDouble(p[4].trim()),
 					Double.parseDouble(p[5].trim()),
-					Double.parseDouble(p[6].trim()),
-					Double.parseDouble(p[7].trim())
+					Double.parseDouble(p[6].trim())
 			));
 		}
 		return zones;
@@ -204,9 +204,9 @@ public class PrepareShamalganPopulationFromZones {
 		return TransportMode.walk;
 	}
 
-	private static Coord jitter(double x, double y, double sigmaM, SplittableRandom rnd) {
-		double jx = x + gaussianApprox(rnd) * sigmaM;
-		double jy = y + gaussianApprox(rnd) * sigmaM;
+	private static Coord jitter(double x, double y, double stdM, SplittableRandom rnd) {
+		double jx = x + gaussianApprox(rnd) * stdM;
+		double jy = y + gaussianApprox(rnd) * stdM;
 		return new Coord(jx, jy);
 	}
 
@@ -219,10 +219,10 @@ public class PrepareShamalganPopulationFromZones {
 	}
 
 	/**
-	 * Length-weighted placement within sigma_m: select a link within radius proportionally to its length,
+	 * Length-weighted placement within a radius: select a link within radius proportionally to its length,
 	 * then a random point on that link. Returns null if no links within radius (caller should fallback to jitter + nearest link).
 	 */
-	private static CoordAndLink coordAndLinkWeightedByLength(double zoneX, double zoneY, double sigmaM, Network network, SplittableRandom rnd) {
+	private static CoordAndLink coordAndLinkWeightedByLength(double zoneX, double zoneY, double radiusM, Network network, SplittableRandom rnd) {
 		List<Link> inRadius = new ArrayList<>();
 		List<Double> weights = new ArrayList<>();
 		for (Link link : network.getLinks().values()) {
@@ -233,7 +233,7 @@ public class PrepareShamalganPopulationFromZones {
 			double x2 = to.getCoord().getX();
 			double y2 = to.getCoord().getY();
 			double dist = distancePointToSegment(zoneX, zoneY, x1, y1, x2, y2);
-			if (dist <= sigmaM) {
+			if (dist <= radiusM) {
 				inRadius.add(link);
 				weights.add(link.getLength());
 			}
@@ -295,8 +295,7 @@ public class PrepareShamalganPopulationFromZones {
 			double homeWeight,
 			double workX,
 			double workY,
-			double workWeight,
-			double sigmaM
+			double workWeight
 	) {
 	}
 }

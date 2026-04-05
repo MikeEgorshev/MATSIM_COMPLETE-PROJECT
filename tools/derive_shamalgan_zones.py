@@ -188,7 +188,6 @@ def derive_zones(
                     "work_x": round(x, 3),
                     "work_y": round(y, 3),
                     "work_weight": work,
-                    "sigma_m": 300,
                     "lon": clon,
                     "lat": clat,
                 }
@@ -209,7 +208,6 @@ def write_zones_csv(zones: list[dict], path: Path) -> None:
         "work_x",
         "work_y",
         "work_weight",
-        "sigma_m",
     ]
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)

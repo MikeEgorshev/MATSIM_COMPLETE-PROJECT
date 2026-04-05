@@ -17,18 +17,17 @@ Output data:
 Each row is one zone (small area), with:
 - `home_x`, `home_y`, `home_weight`: where people live and how many
 - `work_x`, `work_y`, `work_weight`: where jobs/activities are and how many
-- `sigma_m`: random spread around the zone center in meters
 
 Example row:
 
 ```csv
-zone_id,home_x,home_y,home_weight,work_x,work_y,work_weight,sigma_m
-z44,632256.211,4803348.856,1146.867,632256.211,4803348.856,1089.524,300
+zone_id,home_x,home_y,home_weight,work_x,work_y,work_weight
+z44,632256.211,4803348.856,1146.867,632256.211,4803348.856,1089.524
 ```
 
 Interpretation:
 - Zone `z44` has a strong home weight (`1146.867`), so it is picked often as a home zone.
-- People are not placed at exactly one point; they are spread around it with `sigma_m=300`.
+- People are not placed at exactly one point; they are spread around the zone centroid using a fixed placement window.
 
 ## 2) How many agents are created
 
@@ -55,9 +54,9 @@ For each synthetic person:
    - `car` with `CAR_MODE_SHARE` (currently `0.55`)
    - `pt` with `PT_MODE_SHARE` (currently `0.25`)
    - otherwise `walk`
-5. Place activity on the network within `sigma_m` of the zone center:
-   - **Length-weighted placement:** In the circle of radius `sigma_m` around the zone center, links are chosen with probability proportional to their length; then a random point is chosen on the selected link. This avoids overloading short links (e.g. cul-de-sacs) in dense zones.
-   - **Fallback:** If no links fall within `sigma_m`, the previous behaviour is used: random coordinate jitter (approximately Gaussian with standard deviation `sigma_m`) and snap to the nearest link.
+5. Place activity on the network within a fixed-radius window around the zone center:
+   - **Length-weighted placement:** In a fixed-radius window (currently 300 m) around the zone center, links are chosen with probability proportional to their length; then a random point is chosen on the selected link. This avoids overloading short links (e.g. cul-de-sacs) in dense zones.
+   - **Fallback:** If no links fall within the fixed-radius window, random coordinate jitter around the zone center is used and snapped to the nearest link.
 6. Snap is only used in the fallback case; when length-weighted placement succeeds, the activity is already on the chosen link.
 7. Build plan:
    - employed: `home -> work -> home`

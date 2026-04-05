@@ -27,7 +27,7 @@ Short analysis (1–2 hours) to understand how the **street network (UDS)**, **p
 - **How home/work coordinates are assigned:**
   1. For each agent: pick one **home zone** by weighted random (by `home_weight`), one **work/other zone** by weighted random (by `work_weight`).
   2. Employed share: `EMPLOYED_SHARE` (0.65). Mode draw: car 55%, pt 25%, walk 20% (initial plan only; replanning can change it).
-  3. **Coordinate jitter:** add Gaussian-like spread around zone center using `sigma_m` (e.g. 300 m) so agents are not all at the same point.
+  3. **Local placement:** place activities on road links using length-weighted choice within a fixed-radius window around the zone centroid (currently 300 m) so agents are not all at the same point.
   4. **Snap to network:** `NetworkUtils.getNearestLinkExactly(network, coord)` — each home and work/other activity is placed on the nearest link in `network.xml` (EPSG:32643).
   5. Plan: employed → `home → work → home`; not employed → `home → other → home`. Times: home end 07:00–08:59 (employed) or 10:00–14:59 (other); work end 16:00–18:59; other end 12:00–19:59.
 - **Agent count:** If not passed as 4th argument, inferred as `round(sum(home_weight))` clamped to [500, 100000] (current data ~30,481). Override example: `... population.xml 20000`.
@@ -40,7 +40,7 @@ Short analysis (1–2 hours) to understand how the **street network (UDS)**, **p
 - **UDS:** [shamalgan-road-network-report-ru.md](../../analysis-artifacts/network-qc/shamalgan-road-network-report-ru.md) and lane audit re-read. Connectivity: 1 component, 0 dead-ends, 0 isolated nodes. Lane policy matches report.
 - **PT:** [OT_SYSTEM_REPORT.md](../../analysis-artifacts/pt-data/OT_SYSTEM_REPORT.md) and [pt_network_interpretation.md](../../analysis-artifacts/pt-data/pt_network_interpretation.md) confirm 4 lines, 8 routes, 58 stops. [pt_route_on_road_summary.md](../../analysis-artifacts/pt-data/pt_route_on_road_summary.md): 0 stops with snap >80 m, 0 unreachable segments. network-with-pt: 18 pt links, 2 components (expected).
 - **Config:** Single `scenarios/shamalgan/config.xml` with PT; `network-with-pt.xml`, `transitSchedule.xml`, `transitVehicles.xml`, `useTransit=true`.
-- **Population:** Generator `PrepareShamalganPopulationFromZones` matches [POPULATION_ALGORITHM.md](../../scenarios/shamalgan/POPULATION_ALGORITHM.md). Input `zones-derived.csv` has zone_id, home_x, home_y, home_weight, work_x, work_y, work_weight, sigma_m (EPSG:32643). All activities are link-based (snap to network); no facilities file in config. Zone derivation uses 10×8 grid, WORK_SHARE 0.95; outputs and visuals in [analysis-artifacts/zone-derivation/](../../analysis-artifacts/zone-derivation/).
+- **Population:** Generator `PrepareShamalganPopulationFromZones` matches [POPULATION_ALGORITHM.md](../../scenarios/shamalgan/POPULATION_ALGORITHM.md). Input `zones-derived.csv` has zone_id, home_x, home_y, home_weight, work_x, work_y, work_weight (EPSG:32643). All activities are link-based (snap to network); no facilities file in config. Zone derivation uses 10×8 grid, WORK_SHARE 0.95; outputs and visuals in [analysis-artifacts/zone-derivation/](../../analysis-artifacts/zone-derivation/).
 
 ---
 
@@ -102,7 +102,7 @@ From [06_gap_checklist_2026-03-04.md](06_gap_checklist_2026-03-04.md):
   - [analysis-artifacts/zone-derivation/06_zone_weight_map.png](../../analysis-artifacts/zone-derivation/06_zone_weight_map.png) — zone weights.
   - [analysis-artifacts/zone-derivation/07_population_capture_curve.png](../../analysis-artifacts/zone-derivation/07_population_capture_curve.png) — population capture by top zones.
 
-Agents are placed by zone weights, then jittered with `sigma_m` and snapped to the nearest link in `network.xml` (EPSG:32643). So spatial distribution on the network follows these zone maps. A direct **agent-on-network** infographic (e.g. home link count per link or per zone) can be produced later by parsing `population.xml` and aggregating by link id.
+Agents are placed by zone weights, then placed on road links using length-weighted choice within a fixed-radius window around the zone centroid (currently 300 m), and snapped/linked to `network.xml` (EPSG:32643). So spatial distribution on the network follows these zone maps. A direct **agent-on-network** infographic (e.g. home link count per link or per zone) can be produced later by parsing `population.xml` and aggregating by link id.
 
 ---
 
@@ -124,6 +124,6 @@ Agents are placed by zone weights, then jittered with `sigma_m` and snapped to t
 
 ## Prompts for other agents (optional)
 
-- **Transport modelling:** “Review UDS lane counts and speeds for key corridors; review PT headways and service window; review adequacy of population distribution (zone weights and sigma_m) relative to density and network coverage.”
+- **Transport modelling:** “Review UDS lane counts and speeds for key corridors; review PT headways and service window; review adequacy of population distribution (zone weights and local placement window) relative to density and network coverage.”
 - **Programmer:** “In config, use relative output paths. Add integration test for Shamalgan run. Optionally: add a script that reads population.xml and outputs home/work link counts or a simple map of agent distribution on the network for infographic.”
 - **Visualization:** “If needed for the report, add an infographic of agent distribution on the network (e.g. home link counts per link or per zone) using population.xml and network.xml.”

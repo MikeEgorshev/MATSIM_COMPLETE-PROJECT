@@ -153,7 +153,7 @@ def plot_zonal_grid():
     ax.text(
         0.8,
         0.95,
-        "sigma_m = 300 м",
+        "окно размещения: 300 м",
         transform=ax.transAxes,
         fontsize=7.5,
         bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="#555555"),

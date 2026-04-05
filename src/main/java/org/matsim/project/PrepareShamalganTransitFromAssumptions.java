@@ -60,8 +60,11 @@ import java.util.TreeSet;
 public class PrepareShamalganTransitFromAssumptions {
 
 	private static final String TARGET_CRS = "EPSG:32643";
-	private static final double DEFAULT_SPEED_KMH = 30.0;
-	private static final double DEFAULT_DWELL_SEC = 60.0;
+	/** Speed used to build schedule offsets (planar runtimes between stops). */
+	private static final double DEFAULT_SCHEDULE_SPEED_KMH = 30.0;
+	/** Vehicle max speed cap in QSim; should be >= schedule speed. */
+	private static final double DEFAULT_PT_VEHICLE_MAX_SPEED_KMH = 50.0;
+	private static final double DEFAULT_DWELL_SEC = 30.0;
 	private static final int DEFAULT_HEADWAY_SEC = 360;
 	private static final String DEFAULT_SERVICE_START = "06:00:00";
 	private static final String DEFAULT_SERVICE_END = "23:00:00";
@@ -155,7 +158,7 @@ public class PrepareShamalganTransitFromAssumptions {
 	public static void main(String[] args) throws Exception {
 		if (args.length < 5) {
 			System.out.println("Usage:");
-			System.out.println("  PrepareShamalganTransitFromAssumptions <input-network.xml> <stops.csv> <output-network-with-pt.xml> <output-transitSchedule.xml> <output-transitVehicles.xml> [speedKmh] [dwellSec] [headwaySec] [serviceStart] [serviceEnd] [serviceProfileCsv]");
+			System.out.println("  PrepareShamalganTransitFromAssumptions <input-network.xml> <stops.csv> <output-network-with-pt.xml> <output-transitSchedule.xml> <output-transitVehicles.xml> [scheduleSpeedKmh] [ptVehicleMaxSpeedKmh] [dwellSec] [headwaySec] [serviceStart] [serviceEnd] [serviceProfileCsv]");
 			System.out.println("stops.csv can be:");
 			System.out.println("  legacy: osm_type,osm_id,name,lon,lat");
 			System.out.println("  tagged: route_id,stop_seq,stop_id,name,x,y");
@@ -167,12 +170,13 @@ public class PrepareShamalganTransitFromAssumptions {
 		String outputNetworkWithPt = args[2];
 		String outputTransitSchedule = args[3];
 		String outputTransitVehicles = args[4];
-		double speedKmh = args.length >= 6 ? Double.parseDouble(args[5]) : DEFAULT_SPEED_KMH;
-		double dwellSec = args.length >= 7 ? Double.parseDouble(args[6]) : DEFAULT_DWELL_SEC;
-		int headwaySec = args.length >= 8 ? Integer.parseInt(args[7]) : DEFAULT_HEADWAY_SEC;
-		String serviceStart = args.length >= 9 ? args[8] : DEFAULT_SERVICE_START;
-		String serviceEnd = args.length >= 10 ? args[9] : DEFAULT_SERVICE_END;
-		String serviceProfileCsv = args.length >= 11 ? args[10] : DEFAULT_SERVICE_PROFILE_CSV;
+		double scheduleSpeedKmh = args.length >= 6 ? Double.parseDouble(args[5]) : DEFAULT_SCHEDULE_SPEED_KMH;
+		double ptVehicleMaxSpeedKmh = args.length >= 7 ? Double.parseDouble(args[6]) : DEFAULT_PT_VEHICLE_MAX_SPEED_KMH;
+		double dwellSec = args.length >= 8 ? Double.parseDouble(args[7]) : DEFAULT_DWELL_SEC;
+		int headwaySec = args.length >= 9 ? Integer.parseInt(args[8]) : DEFAULT_HEADWAY_SEC;
+		String serviceStart = args.length >= 10 ? args[9] : DEFAULT_SERVICE_START;
+		String serviceEnd = args.length >= 11 ? args[10] : DEFAULT_SERVICE_END;
+		String serviceProfileCsv = args.length >= 12 ? args[11] : DEFAULT_SERVICE_PROFILE_CSV;
 
 		if (!Files.exists(Path.of(inputNetwork))) {
 			throw new IllegalArgumentException("Network file not found: " + Path.of(inputNetwork).toAbsolutePath());
@@ -192,14 +196,32 @@ public class PrepareShamalganTransitFromAssumptions {
 		Vehicles transitVehicles = scenario.getTransitVehicles();
 		TransitScheduleFactory f = schedule.getFactory();
 
-		double speedMps = speedKmh / 3.6;
+		double scheduleSpeedMps = scheduleSpeedKmh / 3.6;
+		double ptVehicleMaxSpeedMps = ptVehicleMaxSpeedKmh / 3.6;
+		if (!(ptVehicleMaxSpeedMps > 0) || !(scheduleSpeedMps > 0)) {
+			throw new IllegalArgumentException("Speeds must be > 0");
+		}
+		if (ptVehicleMaxSpeedMps + 1e-9 < scheduleSpeedMps) {
+			throw new IllegalArgumentException(
+				"ptVehicleMaxSpeedKmh must be >= scheduleSpeedKmh (got "
+					+ ptVehicleMaxSpeedKmh + " < " + scheduleSpeedKmh + ")"
+			);
+		}
 		double serviceStartSec = Time.parseTime(serviceStart);
 		double serviceEndSec = Time.parseTime(serviceEnd);
 		if (!(serviceStartSec < serviceEndSec)) {
 			throw new IllegalArgumentException("serviceStart must be before serviceEnd");
 		}
 
-		createVehicleType(transitVehicles, "busType_assumed", speedMps, DEFAULT_STD_SEATS, DEFAULT_STD_STANDING, DEFAULT_STD_LENGTH_M, DEFAULT_STD_PCU);
+		createVehicleType(
+			transitVehicles,
+			"busType_assumed",
+			ptVehicleMaxSpeedMps,
+			DEFAULT_STD_SEATS,
+			DEFAULT_STD_STANDING,
+			DEFAULT_STD_LENGTH_M,
+			DEFAULT_STD_PCU
+		);
 
 		Map<String, RouteServiceProfile> routeServiceProfiles = readRouteServiceProfiles(
 			serviceProfileCsv,
@@ -215,18 +237,18 @@ public class PrepareShamalganTransitFromAssumptions {
 		if (taggedRouteCsv) {
 			buildFromTaggedRouteCsv(
 				stopsCsv, network, schedule, transitVehicles, f,
-				speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec,
+				scheduleSpeedMps, ptVehicleMaxSpeedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec,
 				routeServiceProfiles
 			);
 		} else {
 			buildFromLegacyCsv(
 				stopsCsv, network, schedule, transitVehicles, f,
-				speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+				scheduleSpeedMps, ptVehicleMaxSpeedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
 			);
 		}
 
 		if (!taggedRouteCsv) {
-			new CreatePseudoNetwork(schedule, network, "pt_", speedMps, 10000.0).createNetwork();
+			new CreatePseudoNetwork(schedule, network, "pt_", scheduleSpeedMps, 10000.0).createNetwork();
 		}
 
 		var validation = TransitScheduleValidator.validateAll(schedule, network);
@@ -249,7 +271,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		System.out.println("Assumed PT supply created.");
 		System.out.println("Lines created: " + schedule.getTransitLines().size());
 		System.out.println("Headway default sec: " + headwaySec + " ; service: " + serviceStart + " - " + serviceEnd);
-		System.out.println("Speed km/h: " + speedKmh + " ; dwell sec: " + dwellSec);
+		System.out.println("Schedule speed km/h: " + scheduleSpeedKmh + " ; PT vehicle max speed km/h: " + ptVehicleMaxSpeedKmh + " ; dwell sec: " + dwellSec);
 		System.out.println("Network with PT: " + outNetwork.toAbsolutePath());
 		System.out.println("Transit schedule: " + outSchedule.toAbsolutePath());
 		System.out.println("Transit vehicles: " + outVehicles.toAbsolutePath());
@@ -268,7 +290,8 @@ public class PrepareShamalganTransitFromAssumptions {
 		TransitSchedule schedule,
 		Vehicles transitVehicles,
 		TransitScheduleFactory f,
-		double speedMps,
+		double scheduleSpeedMps,
+		double ptVehicleMaxSpeedMps,
 		double dwellSec,
 		double serviceStartSec,
 		double serviceEndSec,
@@ -289,12 +312,12 @@ public class PrepareShamalganTransitFromAssumptions {
 		TransitLine outbound = createLine(
 			schedule, f, transitVehicles,
 			"line_bus_assumed_outbound", "route_outbound",
-			ordered, speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+			ordered, scheduleSpeedMps, ptVehicleMaxSpeedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
 		);
 		TransitLine inbound = createLine(
 			schedule, f, transitVehicles,
 			"line_bus_assumed_inbound", "route_inbound",
-			reversedCopy(ordered), speedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
+			reversedCopy(ordered), scheduleSpeedMps, ptVehicleMaxSpeedMps, dwellSec, serviceStartSec, serviceEndSec, headwaySec
 		);
 		schedule.addTransitLine(outbound);
 		schedule.addTransitLine(inbound);
@@ -306,7 +329,8 @@ public class PrepareShamalganTransitFromAssumptions {
 		TransitSchedule schedule,
 		Vehicles transitVehicles,
 		TransitScheduleFactory f,
-		double speedMps,
+		double scheduleSpeedMps,
+		double ptVehicleMaxSpeedMps,
 		double dwellSec,
 		double serviceStartSec,
 		double serviceEndSec,
@@ -385,7 +409,7 @@ public class PrepareShamalganTransitFromAssumptions {
 			createVehicleType(
 				transitVehicles,
 				operationPlan.vehicleTypeId(),
-				speedMps,
+				ptVehicleMaxSpeedMps,
 				operationPlan.seats(),
 				operationPlan.standing(),
 				operationPlan.lengthM(),
@@ -400,7 +424,7 @@ public class PrepareShamalganTransitFromAssumptions {
 				routeId,
 				"route_" + routeId + "_outbound",
 				outbound,
-				speedMps,
+				scheduleSpeedMps,
 				dwellSec,
 				dwellsOut,
 				operationPlan
@@ -413,7 +437,7 @@ public class PrepareShamalganTransitFromAssumptions {
 				routeId,
 				"route_" + routeId + "_inbound",
 				inbound,
-				speedMps,
+				scheduleSpeedMps,
 				dwellSec,
 				dwellsIn,
 				operationPlan
@@ -845,7 +869,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		String baseRouteId,
 		String routeId,
 		List<MappedStop> ordered,
-		double speedMps,
+		double scheduleSpeedMps,
 		double dwellSec,
 		List<Double> dwellSecPerStop,
 		RouteOperationPlan operationPlan
@@ -853,7 +877,7 @@ public class PrepareShamalganTransitFromAssumptions {
 		List<TransitRouteStop> routeStops = new ArrayList<>();
 		List<List<Link>> segmentPaths = new ArrayList<>();
 		List<Double> segmentLengths = new ArrayList<>();
-		double effectiveSpeedMps = (operationPlan.speedMps() > 0) ? operationPlan.speedMps() : speedMps;
+		double effectiveSpeedMps = (operationPlan.speedMps() > 0) ? operationPlan.speedMps() : scheduleSpeedMps;
 
 		Set<String> allowedOrigids = "256".equals(baseRouteId) ? ROUTE_256_ALLOWED_ORIGIDS : null;
 		Set<String> blockedOrigids = "213".equals(baseRouteId) ? ROUTE_213_BLOCKED_ORIGIDS : null;
@@ -1254,7 +1278,8 @@ public class PrepareShamalganTransitFromAssumptions {
 		String lineId,
 		String routeId,
 		List<MappedStop> ordered,
-		double speedMps,
+		double scheduleSpeedMps,
+		double ptVehicleMaxSpeedMps,
 		double dwellSec,
 		double serviceStartSec,
 		double serviceEndSec,
@@ -1272,7 +1297,7 @@ public class PrepareShamalganTransitFromAssumptions {
 			double departure = offset + dwellSec;
 			routeStops.add(f.createTransitRouteStop(fac, arrival, departure));
 			if (i < ordered.size() - 1) {
-				double runTime = dist(ms.coord, ordered.get(i + 1).coord) / speedMps;
+				double runTime = dist(ms.coord, ordered.get(i + 1).coord) / scheduleSpeedMps;
 				offset = departure + runTime;
 			}
 		}
@@ -1284,6 +1309,15 @@ public class PrepareShamalganTransitFromAssumptions {
 			"pt"
 		);
 
+		createVehicleType(
+			vehicles,
+			"busType_assumed",
+			ptVehicleMaxSpeedMps,
+			DEFAULT_STD_SEATS,
+			DEFAULT_STD_STANDING,
+			DEFAULT_STD_LENGTH_M,
+			DEFAULT_STD_PCU
+		);
 		Id<VehicleType> typeId = Id.create("busType_assumed", VehicleType.class);
 		int depCount = 0;
 		for (double dep = serviceStartSec; dep <= serviceEndSec; dep += headwaySec) {

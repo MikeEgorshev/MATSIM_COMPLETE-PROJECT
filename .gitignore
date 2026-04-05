@@ -8,6 +8,7 @@ archive-outputs/
 # Common files to ignore when working with MATSim
 output/
 scenarios/output
+scenarios/*/output*/
 test/output
 
 *.gz

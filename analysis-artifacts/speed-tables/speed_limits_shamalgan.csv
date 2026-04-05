@@ -1,0 +1,7 @@
+metric,value_kmh,notes
+network_links,2991,count of links in network.xml
+pt_route_links,830,count of route links referenced in transitSchedule.xml
+it_freespeed_p50,20.000,median freespeed across network links
+it_freespeed_p95,30.000,p95 freespeed across network links (proxy for max IT speed)
+ot_freespeed_p50,30.000,median freespeed along PT route links
+ot_freespeed_p95,70.000,p95 freespeed along PT route links (proxy for max OT speed)

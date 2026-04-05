@@ -101,7 +101,7 @@
 - `tools/plot_pt_routes_svg.py` — статичная SVG-карта маршрутов по дорожной сети.
 - `tools/plot_assumed_pt_network.py` — растр (PNG) размеченной сети ОТ.
 
-**Анализ после прогона:**
+**Анализ после расчёта:**
 
 - `tools/analyse_pt_boardings_from_events.py` — агрегация посадок/высадок по маршруту и часу из событий MATSim (PersonEntersVehicle / PersonLeavesVehicle). Выход: CSV по route_id, direction, hour.
 

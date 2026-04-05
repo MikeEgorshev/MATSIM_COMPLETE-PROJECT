@@ -4,7 +4,7 @@
 
 **English:** [SHAMALGAN_REAL_PT_INTEGRATION_PLAN](../../en/root/SHAMALGAN_REAL_PT_INTEGRATION_PLAN.md)
 
-## Фаза 0: Базовый прогон (выполнено 2026-02-24)
+## Фаза 0: Базовый расчёт (выполнено 2026-02-24)
 
 - `mvnw -DskipTests compile` проходит.
 - `RunShamalgan --simwrapper` выполняется до конца.
@@ -17,7 +17,7 @@
 - Выходы: `network-with-pt.xml`, `transitSchedule.xml`, `transitVehicles.xml`.
 - Конфиг ОТ: `scenarios/shamalgan/config.xml` (единый конфиг с ОТ).
 
-## Фаза 2: Первый прогон с реальным ОТ
+## Фаза 2: Первый расчёт с реальным ОТ
 
 1. Положить GTFS в `original-input-data/shamalgan/gtfs/shamalgan-gtfs.zip`.
 2. Запустить конвертер (команда в `scenarios/shamalgan/README.md`).
