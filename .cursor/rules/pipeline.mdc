@@ -1,0 +1,40 @@
+---
+description: Project pipeline, folder structure, and Definition of Done for MATSim scenarios
+alwaysApply: true
+---
+
+# Пайплайн и структура проекта
+
+## Структура папок
+```
+scenarios/<city>/          — config.xml, network.xml, population.xml, transit*, pt_service_profile.csv
+original-input-data/<city>/ — OSM extract, GeoTIFF, zones-derived.csv, gpkg
+analysis-artifacts/<topic>/ — QC отчёты, таблицы, промежуточные данные
+Visualization/              — PNG/SVG/HTML карты и инфографики
+tools/                      — Python-скрипты (зоны, остановки, визуализации)
+src/main/java/              — Java-генераторы (PrepareNetwork, PreparePopulation, PrepareTransit, RunScenario)
+docs/ru/progress/           — прогресс-документация и отчёты
+```
+
+## Пайплайн (порядок шагов)
+1. **УДС**: OSM → `PrepareNetwork` → `network.xml` → QC (связность, lanes/speed/capacity)
+2. **Зоны**: GeoTIFF + OSM bounds → `derive_zones.py` → `zones-derived.csv`
+3. **Население**: zones + network → `PreparePopulationFromZones` → `population.xml`
+4. **ОТ**: GTFS или bootstrap → `transitSchedule.xml` + `transitVehicles.xml` + `network-with-pt.xml`
+5. **Запуск**: smoke-run (10 итераций) → full-run (100 итераций) с `--simwrapper`
+6. **Анализ**: сходимость, доли режимов, stuck agents, volumes
+7. **Калибровка** (при наличии данных): scoring-константы, headway, transfer time
+
+## Принципы кода
+- Один параметризованный класс на задачу (не `PrepareShamalganNetwork` + `PrepareKaskelenNetwork`)
+- Город-специфичные данные — в CSV/JSON/аргументах, не в Java-константах
+- Route-overrides (mandatory corridors, blocked links) — в `pt_route_overrides.json`
+- `.gitignore`: output*/, ITERS/, *.gz, *.log, target/, __pycache__/, .idea/
+
+## Definition of Done (v0)
+- Сеть связна; QC есть; lanes/speed/capacity правдоподобны
+- Население: зоны по плотности; population.xml; карта распределения
+- ОТ: TransitScheduleValidator без ошибок; карта маршрутов
+- Запуск: smoke + full без ошибок; output в отдельной папке
+- Анализ: сходимость, доли режимов, stuck agents задокументированы
+- Полная ссылка: `docs/ru/progress/11_development_pipeline_from_shamalgan.md`

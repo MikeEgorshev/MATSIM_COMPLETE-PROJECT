@@ -1,0 +1,43 @@
+---
+description: Public transit data formats, tools, and validation for MATSim
+globs: "{**/*transit*,**/*pt*,**/pt_*}"
+alwaysApply: false
+---
+
+# MATSim PT: форматы, инструменты, валидация
+
+## Файлы PT в сценарии
+- `transitSchedule.xml`: линии → маршруты → остановки → отправления (с привязкой к network links)
+- `transitVehicles.xml`: типы ТС (seats, standingRoom, length, pcuEquivalents) + экземпляры
+- `network-with-pt.xml`: базовая сеть + PT-псевдолинки (или mapped links при использовании pt2matsim)
+- `pt_service_profile.csv`: headway по периодам дня, speed_kmh, vehicle_type, seats, standing, layover_sec
+
+## Два пути создания PT
+### GTFS (предпочтительный)
+- Инструмент: `GTFS2MATSim` (contrib) — `RunGTFS2MATSim.convertGTFSandAddToScenario()`
+- Вход: GTFS zip, serviceDate, CoordinateTransformation
+- Выход: schedule + vehicles + pseudo-network
+
+### Bootstrap без GTFS
+- Вход: tagged stops CSV (`route_id, stop_seq, stop_id, name, x, y [, dwell_sec]`) + `pt_service_profile.csv`
+- Построение трасс: Dijkstra по дорожной сети между остановками
+- Route overrides (mandatory corridors, blocked links): читать из `pt_route_overrides.json`, не hardcode
+
+## Production: pt2matsim
+Для качественного маппинга PT на OSM-сеть: [pt2matsim](https://github.com/matsim-org/pt2matsim)
+- `Osm2MultimodalNetwork` → multimodal network
+- `Gtfs2TransitSchedule` → unmapped schedule (GTFS как **распакованная папка**, не zip)
+- `PublicTransitMapper` → mapped schedule на реальную сеть
+
+## Обязательная валидация
+```java
+var result = TransitScheduleValidator.validateAll(schedule, network);
+if (!result.isValid()) TransitScheduleValidator.printResult(result);
+```
+Прогнать **до** запуска MATSim — иначе ошибки обнаружатся только при runtime.
+
+## Типичные параметры (пригород Алматы)
+- Headway: 10–30 мин (по маршруту и периоду)
+- Dwell: 30–60 с
+- Скорость: 20–32 км/ч
+- Окно обслуживания: 06:00–23:00

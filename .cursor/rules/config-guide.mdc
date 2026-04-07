@@ -1,0 +1,37 @@
+---
+description: MATSim config.xml parameters guide — applied when editing config files
+globs: "**/config.xml"
+alwaysApply: false
+---
+
+# MATSim config.xml: руководство
+
+## Обязательные модули
+- `global`: coordinateSystem (EPSG:32643 для Алматинской области), numberOfThreads, randomSeed
+- `network`: inputNetworkFile (относительный путь)
+- `plans`: inputPlansFile
+- `controller`: outputDirectory, lastIteration, compressionType (gzip)
+- `qsim`: numberOfThreads, endTime (30:00:00 при наличии PT — иначе симуляция может зависнуть)
+
+## Scoring (Charypar-Nagel)
+- `performing`: +6 util/hr (стандарт)
+- `lateArrival`: -18 util/hr
+- modeParams по каждому режиму: `constant`, `marginalUtilityOfTraveling_util_hr`, `monetaryDistanceRate`
+- activityParams: `typicalDuration`, `openingTime`, `closingTime`
+- Калибровка: менять `constant` по режимам для достижения наблюдаемого modal split
+
+## Replanning
+- `BestScore` weight=0.8 (выбор лучшего плана)
+- `ReRoute` weight=0.1 (перемаршрутизация)
+- `SubtourModeChoice` weight=0.1 (смена режима) — modes: `car,pt,walk`; chainBasedModes: `car`
+- Innovation switch-off: после ~80% итераций оставить только BestScore (`disableAfterIteration`)
+
+## Transit
+- `transit.useTransit=true`, `transitModes=pt`, `routingAlgorithmType=SwissRailRaptor`
+- `transitRouter`: searchRadius=1000, maxBeelineWalkConnectionDistance=300, additionalTransferTime=120
+- extensionRadius=500, directWalkFactor=1.0
+
+## Типичные ошибки
+- Забытый `qsim.endTime` → PT-агенты не завершают план, симуляция висит
+- Абсолютные пути в config → сценарий не переносим
+- output в ту же папку при повторном запуске → блокировка файлов

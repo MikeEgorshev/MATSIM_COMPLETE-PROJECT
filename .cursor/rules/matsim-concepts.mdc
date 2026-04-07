@@ -1,0 +1,34 @@
+---
+description: Core MATSim concepts and terminology — always in context for all agents
+alwaysApply: true
+---
+
+# MATSim: ключевые концепции
+
+## Архитектура фреймворка
+MATSim — агентная микросимуляция транспорта. Цикл: **Plans → Mobsim (QSim) → Scoring → Replanning → repeat**.
+Каждый агент имеет набор планов (plan); на каждой итерации выбирается/мутируется один план.
+
+## Основные сущности
+- **Network** (`network.xml`): направленный граф; узлы (nodes) + звенья (links). Link: `id`, `from`, `to`, `length`, `freespeed`, `capacity`, `permlanes`, `modes`.
+- **Population / Plans** (`population.xml`): агенты с планами дня. План = цепочка `Activity → Leg → Activity → …`. Activity: тип (`home`, `work`, `other`), координата или linkId, endTime. Leg: mode (`car`, `pt`, `walk`).
+- **Config** (`config.xml`): модули — `global`, `network`, `plans`, `controller`, `qsim`, `scoring`, `replanning`, `transit`, `transitRouter`, `subtourModeChoice`.
+- **Transit**: `transitSchedule.xml` (линии, маршруты, остановки, отправления) + `transitVehicles.xml` (типы ТС, вместимость).
+
+## Scoring (функция полезности Charypar-Nagel)
+`Score = Σ U_act(activity) + Σ U_travel(leg)`. Ключевые параметры в `config.xml` → `scoring`:
+- `performing` (utility за час активности)
+- `lateArrival` (штраф за опоздание)
+- modeParams: `constant`, `marginalUtilityOfTraveling_util_hr`, `monetaryDistanceRate`
+
+## Replanning (co-evolutionary algorithm)
+Стратегии: `BestScore` (выбор лучшего плана), `ReRoute` (перемаршрутизация), `SubtourModeChoice` (смена режима на подтуре), `TimeAllocationMutator`.
+Рекомендация книги MATSim: innovation switch-off на ~80% итераций (оставить только `BestScore`).
+
+## Координатные системы
+Всегда метрическая проекция (UTM). Для Алматинской области: `EPSG:32643` (UTM zone 43N). В `config.xml` → `global.coordinateSystem`.
+
+## Справка
+- Книга: https://matsim.org/files/book/partOne-latest.pdf
+- Код: https://github.com/matsim-org/matsim-libs
+- Примеры: https://github.com/matsim-org/matsim-code-examples

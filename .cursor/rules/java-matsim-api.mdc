@@ -1,0 +1,55 @@
+---
+description: MATSim Java API patterns and ecosystem tools — applied when editing Java files
+globs: "**/*.java"
+alwaysApply: false
+---
+
+# MATSim Java API: паттерны и инструменты
+
+## Стандартный load-and-run
+```java
+Config config = ConfigUtils.loadConfig(configPath);
+Scenario scenario = ScenarioUtils.loadScenario(config);
+Controler controler = new Controler(scenario);
+controler.run();
+```
+Предпочтительнее: `MATSimApplication` (с picocli CLI, хуки `prepareConfig`/`prepareScenario`/`prepareControler`).
+
+## OSM → Network
+Использовать `SupersonicOsmNetworkReader` (MATSim core) для .pbf, `OsmNetworkReader` для .osm XML:
+```java
+Network network = new SupersonicOsmNetworkReader.Builder()
+    .setCoordinateTransformation(ct)
+    .build()
+    .read(osmPath);
+new NetworkCleaner().run(network);
+new NetworkWriter(network).write(outputPath);
+```
+
+## Population
+`PopulationUtils.createActivityFromLinkId(type, linkId)`, `PopulationUtils.createLeg(mode)`, `PopulationUtils.writePopulation(pop, path)`.
+Snap к сети: `NetworkUtils.getNearestLinkExactly(network, coord)`.
+
+## Transit
+- GTFS → schedule: использовать `GTFS2MATSim` (`org.matsim.contrib.gtfs`) как Maven-зависимость, не писать свой конвертер
+- Маппинг PT на сеть: `pt2matsim` (`org.matsim.pt2matsim`) для production
+- Валидация: `TransitScheduleValidator.validateAll(schedule, network)` — обязательно до запуска
+
+## Принципы
+- Параметризовать через аргументы/конфиг, не дублировать классы по городам
+- Route-specific данные (blocked links, mandatory corridors) — читать из JSON/CSV, не hardcode в Map.of()
+- MATSim version: управлять через `pom.xml` parent `matsim-all` (текущая: `2025.0`)
+- Java 21 (maven.compiler.release=21)
+
+## Зависимости (pom.xml)
+```xml
+<dependency>
+    <groupId>org.matsim</groupId>
+    <artifactId>matsim</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.matsim.contrib</groupId>
+    <artifactId>simwrapper</artifactId>
+</dependency>
+```
+Репозитории: `https://repo.matsim.org/repository/matsim` + OSGeo (geotools).

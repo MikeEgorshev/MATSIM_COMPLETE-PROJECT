@@ -1,6 +1,7 @@
 # Add own ignores on top, don't edit the template
 
-.cursor/
+.cursor/*
+!.cursor/rules/
 docs/readme-hub/files/
 
 archive-outputs/
